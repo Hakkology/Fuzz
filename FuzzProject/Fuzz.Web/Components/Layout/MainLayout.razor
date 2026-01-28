@@ -1,0 +1,191 @@
+@inherits LayoutComponentBase
+@using Fuzz.Web.Theme
+
+<MudThemeProvider Theme="FuzzTheme.DarkOrangeTheme" IsDarkMode="true" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="0" Class="fuzz-appbar">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.AutoAwesome" Color="Color.Primary" Size="Size.Medium" />
+            <MudText Typo="Typo.h6" Class="fuzz-logo">Fuzz Agent</MudText>
+        </MudStack>
+        <MudSpacer />
+        <AuthorizeView>
+            <Authorized>
+                <MudChip T="string" Color="Color.Primary" Variant="Variant.Text" Icon="@Icons.Material.Filled.Person">
+                    @context.User.Identity?.Name
+                </MudChip>
+                <form action="Account/Logout" method="post">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="ReturnUrl" value="@currentUrl" />
+                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Class="ml-2">
+                        <MudIcon Icon="@Icons.Material.Filled.Logout" Size="Size.Small" Class="mr-1" />
+                        Çıkış
+                    </MudButton>
+                </form>
+            </Authorized>
+            <NotAuthorized>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" href="Account/Register" Size="Size.Small" Class="mr-2">
+                    Kayıt Ol
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" href="Account/Login" Size="Size.Small">
+                    Giriş Yap
+                </MudButton>
+            </NotAuthorized>
+        </AuthorizeView>
+    </MudAppBar>
+    
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="0" Class="fuzz-drawer">
+        <MudDrawerHeader Class="fuzz-drawer-header">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudAvatar Color="Color.Primary" Size="Size.Medium">
+                    <MudIcon Icon="@Icons.Material.Filled.Bolt" />
+                </MudAvatar>
+                <MudStack Spacing="0">
+                    <MudText Typo="Typo.subtitle1" Class="fuzz-brand">Fuzz Web</MudText>
+                    <MudText Typo="Typo.caption" Class="fuzz-version">v1.0.0</MudText>
+                </MudStack>
+            </MudStack>
+        </MudDrawerHeader>
+        <MudDivider Class="my-2" />
+        <NavMenu />
+    </MudDrawer>
+    
+    <MudMainContent Class="fuzz-main-content">
+        <MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+<style>
+    .fuzz-appbar {
+        background: rgba(15, 15, 35, 0.85) !important;
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-bottom: 1px solid rgba(255, 107, 53, 0.15);
+    }
+    
+    .fuzz-logo {
+        font-weight: 700;
+        background: linear-gradient(135deg, #FF6B35, #FF8F5E);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .fuzz-drawer {
+        background: rgba(26, 26, 46, 0.95) !important;
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-right: 1px solid rgba(255, 107, 53, 0.1);
+    }
+    
+    .fuzz-drawer-header {
+        padding: 16px;
+        background: rgba(255, 107, 53, 0.05);
+        border-bottom: 1px solid rgba(255, 107, 53, 0.1);
+    }
+    
+    .fuzz-brand {
+        color: #FFFFFF;
+        font-weight: 600;
+    }
+    
+    .fuzz-version {
+        color: #FF6B35;
+        opacity: 0.8;
+    }
+    
+    .fuzz-main-content {
+        background: linear-gradient(135deg, #0F0F23 0%, #1A1A2E 50%, #16213E 100%);
+        min-height: 100vh;
+    }
+    
+    /* Glassmorphism Card Styles */
+    .mud-card {
+        background: rgba(26, 26, 46, 0.7) !important;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 107, 53, 0.15);
+        border-radius: 16px !important;
+    }
+    
+    .mud-card:hover {
+        border-color: rgba(255, 107, 53, 0.35);
+        box-shadow: 0 8px 32px rgba(255, 107, 53, 0.15);
+    }
+    
+    /* NavMenu Styling */
+    .mud-nav-item .mud-nav-link {
+        border-radius: 8px;
+        margin: 4px 8px;
+        transition: all 0.2s ease;
+    }
+    
+    .mud-nav-item .mud-nav-link:hover {
+        background: rgba(255, 107, 53, 0.1) !important;
+    }
+    
+    .mud-nav-item .mud-nav-link.active {
+        background: rgba(255, 107, 53, 0.2) !important;
+        border-left: 3px solid #FF6B35;
+    }
+    
+    /* Button Styles */
+    .mud-button-filled.mud-button-primary {
+        background: linear-gradient(135deg, #FF6B35 0%, #FF8F5E 100%) !important;
+        box-shadow: 0 4px 16px rgba(255, 107, 53, 0.3);
+    }
+    
+    .mud-button-filled.mud-button-primary:hover {
+        box-shadow: 0 6px 24px rgba(255, 107, 53, 0.45);
+        transform: translateY(-1px);
+    }
+    
+    /* Input Styles */
+    .mud-input-outlined .mud-input-outlined-border {
+        border-color: rgba(255, 107, 53, 0.3) !important;
+    }
+    
+    .mud-input-outlined:hover .mud-input-outlined-border {
+        border-color: rgba(255, 107, 53, 0.5) !important;
+    }
+    
+    .mud-input-outlined.mud-input-focused .mud-input-outlined-border {
+        border-color: #FF6B35 !important;
+    }
+</style>
+
+@code {
+    private bool _drawerOpen = true;
+    private string? currentUrl;
+
+    void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    [Inject] private NavigationManager NavigationManager { get; set; } = default!;
+
+    protected override void OnInitialized()
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}

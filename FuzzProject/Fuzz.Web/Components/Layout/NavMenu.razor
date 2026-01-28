@@ -1,0 +1,59 @@
+@implements IDisposable
+@inject NavigationManager NavigationManager
+
+<MudNavMenu Color="Color.Primary" Bordered="false" Dense="false" Class="mt-2">
+    <MudText Typo="Typo.overline" Class="px-4 py-2" Style="color: rgba(255, 107, 53, 0.7);">
+        ANA MENÜ
+    </MudText>
+    
+    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">
+        Ana Sayfa
+    </MudNavLink>
+    
+    <MudNavLink Href="agent-chat" Icon="@Icons.Material.Filled.SmartToy">
+        Agent Chat
+    </MudNavLink>
+
+    <MudDivider Class="my-3" />
+    
+    <MudText Typo="Typo.overline" Class="px-4 py-2" Style="color: rgba(255, 107, 53, 0.7);">
+        HESAP
+    </MudText>
+    
+    <AuthorizeView>
+        <Authorized>
+            <MudNavLink Href="Account/Manage" Icon="@Icons.Material.Filled.ManageAccounts">
+                Profil Ayarları
+            </MudNavLink>
+        </Authorized>
+        <NotAuthorized>
+            <MudNavLink Href="Account/Register" Icon="@Icons.Material.Filled.PersonAdd">
+                Kayıt Ol
+            </MudNavLink>
+            <MudNavLink Href="Account/Login" Icon="@Icons.Material.Filled.Login">
+                Giriş Yap
+            </MudNavLink>
+        </NotAuthorized>
+    </AuthorizeView>
+</MudNavMenu>
+
+@code {
+    private string? currentUrl;
+
+    protected override void OnInitialized()
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}

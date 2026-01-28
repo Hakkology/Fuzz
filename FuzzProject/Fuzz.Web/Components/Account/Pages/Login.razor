@@ -1,0 +1,193 @@
+@page "/Account/Login"
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Identity
+@using Fuzz.Domain.Entities
+@using MudBlazor.StaticInput
+
+@inject UserManager<FuzzUser> UserManager
+@inject SignInManager<FuzzUser> SignInManager
+@inject ILogger<Login> Logger
+@inject NavigationManager NavigationManager
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>Giriş Yap - Fuzz</PageTitle>
+
+<div class="login-container">
+    <MudStaticPaper Class="login-card pa-8" Elevation="0">
+        <MudStack Spacing="4" AlignItems="AlignItems.Center">
+            <MudAvatar Size="Size.Large" Class="login-avatar">
+                <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Large" />
+            </MudAvatar>
+            
+            <MudText Typo="Typo.h4" Class="login-title">Giriş Yap</MudText>
+            <MudText Typo="Typo.body2" Class="login-subtitle">Hesabınıza giriş yapın</MudText>
+        </MudStack>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-4" Dense="true">@errorMessage</MudAlert>
+        }
+
+        <EditForm EditContext="editContext" method="post" OnSubmit="LoginUser" FormName="login">
+            <DataAnnotationsValidator />
+            
+            <MudStack Spacing="3" Class="mt-6">
+                <MudStaticTextField @bind-Value="Input.Email" 
+                              Label="E-posta" 
+                              Variant="Variant.Outlined"
+                              InputType="InputType.Email"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Email"
+                              autocomplete="username"
+                              Required="true"
+                              RequiredError="E-posta gerekli" />
+                
+                <MudStaticTextField @bind-Value="Input.Password" 
+                              Label="Şifre" 
+                              Variant="Variant.Outlined"
+                              InputType="InputType.Password"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Password"
+                              autocomplete="current-password"
+                              Required="true"
+                              RequiredError="Şifre gerekli" />
+                
+                <MudStaticSwitch @bind-Value="Input.RememberMe" 
+                             Label="Beni hatırla" 
+                             Color="Color.Primary" />
+                
+                <MudStaticButton type="submit"
+                           Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           Size="Size.Large"
+                           FullWidth="true"
+                           Class="mt-2">
+                    <MudIcon Icon="@Icons.Material.Filled.Login" Class="mr-2" />
+                    Giriş Yap
+                </MudStaticButton>
+            </MudStack>
+        </EditForm>
+
+        <MudDivider Class="my-4" />
+
+        <MudStack Spacing="2" AlignItems="AlignItems.Center">
+            <MudLink Href="Account/ForgotPassword" Color="Color.Primary" Typo="Typo.body2">
+                Şifrenizi mi unuttunuz?
+            </MudLink>
+            
+            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                <MudText Typo="Typo.body2" Style="color: #B0B0B0;">Hesabınız yok mu?</MudText>
+                <MudLink Href="@(NavigationManager.GetUriWithQueryParameters("Account/Register", new Dictionary<string, object?> { ["ReturnUrl"] = ReturnUrl }))" 
+                         Color="Color.Primary" Typo="Typo.body2">
+                    Kayıt Ol
+                </MudLink>
+            </MudStack>
+        </MudStack>
+    </MudStaticPaper>
+</div>
+
+<style>
+    .login-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 70vh;
+    }
+    
+    .login-card {
+        background: rgba(26, 26, 46, 0.8) !important;
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 107, 53, 0.2);
+        border-radius: 24px !important;
+        max-width: 420px;
+        width: 100%;
+    }
+    
+    .login-avatar {
+        width: 72px !important;
+        height: 72px !important;
+        background: linear-gradient(135deg, #FF6B35, #FF8F5E) !important;
+    }
+    
+    .login-title {
+        color: #FFFFFF;
+        font-weight: 700;
+    }
+    
+    .login-subtitle {
+        color: #B0B0B0;
+    }
+</style>
+
+@code {
+    private string? errorMessage;
+    private EditContext editContext = default!;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = default!;
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Input ??= new();
+        editContext = new EditContext(Input);
+
+        if (HttpMethods.IsGet(HttpContext.Request.Method))
+        {
+            await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+        }
+    }
+
+    public async Task LoginUser()
+    {
+        if (!editContext.Validate())
+        {
+            return;
+        }
+
+        var result = await SignInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+
+        if (result.Succeeded)
+        {
+            Logger.LogInformation("User logged in.");
+            RedirectManager.RedirectTo(ReturnUrl);
+        }
+        else if (result.RequiresTwoFactor)
+        {
+            RedirectManager.RedirectTo(
+                "Account/LoginWith2fa",
+                new() { ["returnUrl"] = ReturnUrl, ["rememberMe"] = Input.RememberMe });
+        }
+        else if (result.IsLockedOut)
+        {
+            Logger.LogWarning("User account locked out.");
+            RedirectManager.RedirectTo("Account/Lockout");
+        }
+        else
+        {
+            errorMessage = "Hata: Geçersiz giriş bilgileri.";
+        }
+    }
+
+    private sealed class InputModel
+    {
+        [Required(ErrorMessage = "E-posta gerekli")]
+        [EmailAddress(ErrorMessage = "Geçerli bir e-posta adresi girin")]
+        public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "Şifre gerekli")]
+        [DataType(DataType.Password)]
+        public string Password { get; set; } = "";
+
+        [Display(Name = "Beni hatırla")]
+        public bool RememberMe { get; set; }
+    }
+}
