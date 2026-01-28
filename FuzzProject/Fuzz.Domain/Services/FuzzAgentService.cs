@@ -1,68 +1,44 @@
-using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.ChatCompletion;
-using Microsoft.SemanticKernel.Connectors.OpenAI;
+using Google.GenAI;
+using Google.GenAI.Types;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Fuzz.Domain.Data;
 using Fuzz.Domain.Services.Plugins;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 
 namespace Fuzz.Domain.Services;
 
 public interface IFuzzAgentService
 {
     Task<FuzzResponse> ProcessCommandAsync(string input, string userId);
+    void ClearHistory();
 }
 
 public class FuzzAgentService : IFuzzAgentService
 {
-    private readonly FuzzDbContext _dbContext;
-    private readonly Kernel _kernel;
-    private readonly FuzzSqlPlugin _sqlPlugin;
+    private readonly IDbContextFactory<FuzzDbContext> _dbFactory;
     private readonly IConfiguration _configuration;
-    private readonly IChatCompletionService _chatCompletion;
+    private readonly ILogger<FuzzAgentService> _logger;
+    private readonly FuzzSqlPlugin _sqlPlugin;
+    private readonly List<Content> _history = new();
 
-    public FuzzAgentService(FuzzDbContext dbContext, IConfiguration configuration)
+    public FuzzAgentService(
+        IDbContextFactory<FuzzDbContext> dbFactory, 
+        IConfiguration configuration,
+        ILogger<FuzzAgentService> logger)
     {
-        _dbContext = dbContext;
+        _dbFactory = dbFactory;
         _configuration = configuration;
+        _logger = logger;
         _sqlPlugin = new FuzzSqlPlugin(_configuration);
-        
-        var builder = Kernel.CreateBuilder();
-        builder.AddOpenAIChatCompletion(
-            modelId: "llama3.1", 
-            apiKey: "ollama", 
-            endpoint: new Uri("http://localhost:11434/v1"));
-
-        builder.Plugins.AddFromObject(_sqlPlugin);
-        _kernel = builder.Build();
-        _chatCompletion = _kernel.GetRequiredService<IChatCompletionService>();
     }
 
-    private string GetSchemaDescription()
+    private async Task<string?> GetUserKeyAsync(string userId)
     {
-        var schema = "POSTGRESQL DATABASE SCHEMA:\n";
-        foreach (var entityType in _dbContext.Model.GetEntityTypes())
-        {
-            var tableName = entityType.GetTableName();
-            schema += $"\n📋 TABLE: \"{tableName}\"\n";
-            foreach (var property in entityType.GetProperties())
-            {
-                var columnName = property.GetColumnName();
-                var isRequired = !property.IsNullable;
-                var isPrimaryKey = property.IsPrimaryKey();
-                var clrType = property.ClrType.Name;
-                
-                var markers = new List<string>();
-                if (isPrimaryKey) markers.Add("PK");
-                if (isRequired) markers.Add("Required");
-                
-                var markerStr = markers.Count > 0 ? $" [{string.Join(", ", markers)}]" : "";
-                schema += $"   • \"{columnName}\" ({clrType}){markerStr}\n";
-            }
-        }
-        return schema;
+        using var db = await _dbFactory.CreateDbContextAsync();
+        var entry = await db.Keys.FirstOrDefaultAsync(k => k.UserId == userId);
+        return entry?.GeminiApiKey;
     }
 
     public async Task<FuzzResponse> ProcessCommandAsync(string input, string userId)
@@ -71,146 +47,132 @@ public class FuzzAgentService : IFuzzAgentService
         {
             _sqlPlugin.UserId = userId;
             _sqlPlugin.LastQuery = null;
-            var schemaInfo = GetSchemaDescription();
 
-            var systemPrompt = $@"Sen Fuzz Agent'sın - kullanıcının görevlerini yöneten akıllı bir asistan.
-
-{schemaInfo}
-
-⚠️ KRİTİK KURALLAR:
-1. AKTIF KULLANICI: '{userId}' - TÜM işlemlerde bu ID'yi kullan
-2. SQL yazarken tablo ve kolon isimlerini ÇİFT TIRNAK içinde yaz: ""FuzzTodos"", ""Title""
-3. WHERE kısıtlaması: HER sorguda ""UserId"" = '{userId}' olmalı
-4. INSERT'lerde UserId değeri MUTLAKA eklensin
-5. Görev (Todo) tablosu: ""FuzzTodos"" - Kolonlar: ""Id"", ""Title"", ""IsCompleted"", ""UserId""
-
-📝 GÖREV YÖNETİMİ ÖRNEKLERİ:
-- Görevleri listele: SELECT ""Id"", ""Title"", ""IsCompleted"" FROM ""FuzzTodos"" WHERE ""UserId"" = '{userId}'
-- Yeni görev ekle: INSERT INTO ""FuzzTodos"" (""Title"", ""UserId"") VALUES ('Görev başlığı', '{userId}')
-- Görev tamamla: UPDATE ""FuzzTodos"" SET ""IsCompleted"" = true WHERE ""Id"" = X AND ""UserId"" = '{userId}'
-- Görev sil: DELETE FROM ""FuzzTodos"" WHERE ""Id"" = X AND ""UserId"" = '{userId}'
-
-🎯 CEVAP FORMATI:
-- Kullanıcıya HER ZAMAN Türkçe, samimi ve yardımcı ol
-- SQL çalıştırdıktan sonra sonucu AÇIKLA (ham veri değil)
-- Örn: 'Görevinizi ekledim!' veya 'Şu an 3 tamamlanmamış göreviniz var:'";
-
-            var chatHistory = new ChatHistory();
-            chatHistory.AddSystemMessage(systemPrompt);
-            chatHistory.AddUserMessage(input);
-
-            var settings = new OpenAIPromptExecutionSettings
+            string? apiKey = await GetUserKeyAsync(userId);
+            if (string.IsNullOrWhiteSpace(apiKey))
             {
-                ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
-                Temperature = 0.3
+                return new FuzzResponse { Answer = "⚠️ Lütfen 'AI Ayarları' sayfasından Gemini API anahtarınızı girin." };
+            }
+
+            // Google.GenAI Client initialization
+            var client = new Client(apiKey: apiKey.Trim());
+            
+            // System prompt initialization in history
+            if (_history.Count == 0 || (_history[0].Parts.Count > 0 && _history[0].Parts[0].Text != null && !_history[0].Parts[0].Text!.Contains(userId)))
+            {
+                _history.Clear();
+                _history.Add(new Content { Role = "user", Parts = new List<Part> { new Part { Text = $@"Sen Fuzz Agent'sın. PostgreSQL uzmanısın.
+KULLANICI_ID: '{userId}'
+TABLO: ""FuzzTodos"" (""Id"", ""Title"", ""IsCompleted"", ""UserId"")
+KURALLAR: Tablo ve kolon adlarını MUTLAKA çift tırnak içinde yaz: ""FuzzTodos"", ""Title"".
+Sorguda mutlaka ""UserId"" = '{userId}' filtresi olmalı.
+ExecuteSql fonksiyonunu kullanarak veriye ulaş ve sonucu Türkçe akıcı bir dille özetle." } } });
+                _history.Add(new Content { Role = "model", Parts = new List<Part> { new Part { Text = "Anlaşıldı. PostgreSQL uzmanı olarak veritabanı işlemlerinizde yardıma hazırım." } } });
+            }
+
+            _history.Add(new Content { Role = "user", Parts = new List<Part> { new Part { Text = input } } });
+
+            // Define tools for the new SDK - Use uppercase enum values for 0.13.1
+            var tools = new List<Tool>
+            {
+                new Tool
+                {
+                    FunctionDeclarations = new List<FunctionDeclaration>
+                    {
+                        new FunctionDeclaration
+                        {
+                            Name = "ExecuteSql",
+                            Description = "Executes a raw PostgreSQL query.",
+                            Parameters = new Schema
+                            {
+                                Type = Google.GenAI.Types.Type.OBJECT, 
+                                Properties = new Dictionary<string, Schema>
+                                {
+                                    { "sql", new Schema { Type = Google.GenAI.Types.Type.STRING, Description = "The raw SQL query. EVERY query MUST include 'UserId' filter." } }
+                                },
+                                Required = new List<string> { "sql" }
+                            }
+                        }
+                    }
+                }
             };
 
-            var result = await _chatCompletion.GetChatMessageContentAsync(chatHistory, settings, _kernel);
-            var content = result.Content ?? "";
-
-            // Fallback: Llama bazen JSON döndürür, bunu işleyelim
-            content = await ProcessFallbackJsonAsync(content, userId);
-
-            // Eğer hala ham veri varsa, temizle
-            content = CleanupResponse(content);
-
-            return new FuzzResponse 
-            { 
-                Answer = content, 
-                LastSql = _sqlPlugin.LastQuery 
+            var config = new GenerateContentConfig
+            {
+                Tools = tools,
+                Temperature = 0.1f
             };
+
+            string finalAnswer = "";
+            bool continueLoop = true;
+            int maxIterations = 5;
+
+            while (continueLoop && maxIterations-- > 0)
+            {
+                var response = await client.Models.GenerateContentAsync(
+                    model: "gemini-3-flash-preview",
+                    contents: _history,
+                    config: config);
+
+                if (response.Candidates == null || response.Candidates.Count == 0)
+                    break;
+
+                var candidate = response.Candidates[0];
+                if (candidate.Content != null)
+                {
+                    _history.Add(candidate.Content);
+
+                    var functionCalls = candidate.Content.Parts?.Where(p => p.FunctionCall != null).ToList();
+
+                    if (functionCalls != null && functionCalls.Any())
+                    {
+                        var responseParts = new List<Part>();
+                        foreach (var part in functionCalls)
+                        {
+                            var call = part.FunctionCall;
+                            if (call != null && call.Name == "ExecuteSql")
+                            {
+                                string sql = "";
+                                if (call.Args != null && call.Args.TryGetValue("sql", out var sqlObj))
+                                    sql = sqlObj?.ToString() ?? "";
+                                
+                                var result = await _sqlPlugin.ExecuteSqlAsync(sql);
+                                
+                                responseParts.Add(new Part
+                                {
+                                    FunctionResponse = new FunctionResponse
+                                    {
+                                        Name = "ExecuteSql",
+                                        Response = new Dictionary<string, object> { { "result", result } }
+                                    }
+                                });
+                            }
+                        }
+
+                        _history.Add(new Content { Role = "user", Parts = responseParts });
+                    }
+                    else
+                    {
+                        finalAnswer = candidate.Content.Parts?.FirstOrDefault(p => !string.IsNullOrEmpty(p.Text))?.Text ?? "";
+                        continueLoop = false;
+                    }
+                }
+                else
+                {
+                    continueLoop = false;
+                }
+            }
+
+            if (_history.Count > 15) _history.RemoveRange(2, 2);
+
+            return new FuzzResponse { Answer = finalAnswer, LastSql = _sqlPlugin.LastQuery };
         }
         catch (Exception ex)
         {
-            return new FuzzResponse { Answer = $"Bir hata oluştu: {ex.Message}" };
+            _logger.LogError(ex, "Agent hatası");
+            return new FuzzResponse { Answer = $"Bir teknik hata oluştu: {ex.Message}. Lütfen API Anahtarınızı kontrol edin." };
         }
     }
 
-    private async Task<string> ProcessFallbackJsonAsync(string content, string userId)
-    {
-        // JSON function call formatını kontrol et
-        var jsonPattern = @"\{[""']?name[""']?\s*:\s*[""']?FuzzSqlPlugin[^}]*\}";
-        var sqlPattern = @"[""']?sql[""']?\s*:\s*[""']([^""']+)[""']";
-        
-        if (Regex.IsMatch(content, jsonPattern, RegexOptions.IgnoreCase))
-        {
-            var sqlMatch = Regex.Match(content, sqlPattern, RegexOptions.IgnoreCase);
-            if (sqlMatch.Success)
-            {
-                var sql = sqlMatch.Groups[1].Value;
-                sql = sql.Replace("\\\"", "\"").Replace("\\'", "'");
-                
-                // SQL'i çalıştır
-                var sqlResult = await _sqlPlugin.ExecuteSqlAsync(sql);
-                
-                // Sonuca göre güzel bir yanıt oluştur
-                return await GenerateNaturalResponseAsync(sql, sqlResult, userId);
-            }
-        }
-        
-        return content;
-    }
-
-    private async Task<string> GenerateNaturalResponseAsync(string sql, string sqlResult, string userId)
-    {
-        var upperSql = sql.Trim().ToUpper();
-        
-        if (upperSql.StartsWith("INSERT"))
-        {
-            return "✅ Görevinizi başarıyla ekledim!";
-        }
-        else if (upperSql.StartsWith("UPDATE"))
-        {
-            if (sql.Contains("IsCompleted") && sql.Contains("true"))
-                return "✅ Görev tamamlandı olarak işaretlendi!";
-            return "✅ Güncelleme başarıyla yapıldı!";
-        }
-        else if (upperSql.StartsWith("DELETE"))
-        {
-            return "🗑️ Görev başarıyla silindi!";
-        }
-        else if (upperSql.StartsWith("SELECT"))
-        {
-            if (sqlResult == "Kayıt bulunamadı.")
-                return "📋 Henüz görev bulunmuyor. Yeni bir görev eklemek ister misiniz?";
-            
-            try
-            {
-                var data = JsonSerializer.Deserialize<List<Dictionary<string, JsonElement>>>(sqlResult);
-                if (data != null && data.Count > 0)
-                {
-                    var response = $"📋 **{data.Count} görev bulundu:**\n\n";
-                    foreach (var item in data)
-                    {
-                        var title = item.ContainsKey("Title") ? item["Title"].GetString() : "Başlıksız";
-                        var isCompleted = item.ContainsKey("IsCompleted") && item["IsCompleted"].GetBoolean();
-                        var status = isCompleted ? "✅" : "⏳";
-                        var id = item.ContainsKey("Id") ? item["Id"].GetInt32().ToString() : "?";
-                        response += $"{status} **#{id}** - {title}\n";
-                    }
-                    return response;
-                }
-            }
-            catch
-            {
-                // JSON parse edilemezse ham sonucu döndür
-            }
-            
-            return sqlResult;
-        }
-        
-        return sqlResult;
-    }
-
-    private string CleanupResponse(string content)
-    {
-        // Ham JSON'u temizle
-        content = Regex.Replace(content, @"\{[""']?name[""']?\s*:.*?\}", "", RegexOptions.Singleline);
-        content = content.Trim();
-        
-        if (string.IsNullOrWhiteSpace(content))
-            return "İşlem tamamlandı.";
-            
-        return content;
-    }
+    public void ClearHistory() => _history.Clear();
 }

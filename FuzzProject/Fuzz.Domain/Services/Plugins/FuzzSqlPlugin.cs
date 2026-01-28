@@ -1,5 +1,3 @@
-using System.ComponentModel;
-using Microsoft.SemanticKernel;
 using Npgsql;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
@@ -17,9 +15,7 @@ public class FuzzSqlPlugin
         _connectionString = configuration.GetConnectionString("DefaultConnection") ?? throw new Exception("Conn string not found.");
     }
 
-    [KernelFunction, Description("Executes a raw PostgreSQL query.")]
-    public async Task<string> ExecuteSqlAsync(
-        [Description("The raw SQL query. EVERY query MUST include 'UserId' filter.")] string sql)
+    public async Task<string> ExecuteSqlAsync(string sql)
     {
         LastQuery = sql;
         try

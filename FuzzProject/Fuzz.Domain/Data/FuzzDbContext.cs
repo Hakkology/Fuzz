@@ -12,11 +12,14 @@ public class FuzzDbContext : IdentityDbContext<FuzzUser>
     }
 
     public DbSet<FuzzTodo> Todos { get; set; }
+    public DbSet<FuzzKey> Keys { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
 
+        builder.Entity<FuzzKey>().ToTable("FuzzKeys");
+        
         // Identity tablo isimlerini de Fuzz ile başlatalım
         builder.Entity<FuzzUser>().ToTable("FuzzUsers");
         builder.Entity<IdentityRole>().ToTable("FuzzRoles");
