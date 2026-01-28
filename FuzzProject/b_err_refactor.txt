@@ -1,0 +1,15 @@
+  Geri y├╝klenecek projeler belirleniyor...
+  Geri y├╝kleme i├ğin t├╝m projeler g├╝ncel.
+C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\FuzzProject\Fuzz.Domain\Services\GeminiAgentService.cs(39,24): error CS0246: 'AiConfiguration' t├╝r├╝ veya ad alan─▒ ad─▒ bulunamad─▒ (bir using y├Ânergeniz veya derleme ba┼şvurunuz mu eksik?) [C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\FuzzProject\Fuzz.Domain\Fuzz.Domain.csproj]
+C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\FuzzProject\Fuzz.Domain\Services\OpenAiAgentService.cs(31,24): error CS0246: 'AiConfiguration' t├╝r├╝ veya ad alan─▒ ad─▒ bulunamad─▒ (bir using y├Ânergeniz veya derleme ba┼şvurunuz mu eksik?) [C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\FuzzProject\Fuzz.Domain\Fuzz.Domain.csproj]
+  Fuzz.Web.Client -> C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\FuzzProject\Fuzz.Web.Client\bin\Debug\net10.0\Fuzz.Web.Client.dll
+  Fuzz.Web.Client (Blazor output) -> C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\FuzzProject\Fuzz.Web.Client\bin\Debug\net10.0\wwwroot
+
+Olu┼şturma BA┼ŞARISIZ OLDU.
+
+C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\FuzzProject\Fuzz.Domain\Services\GeminiAgentService.cs(39,24): error CS0246: 'AiConfiguration' t├╝r├╝ veya ad alan─▒ ad─▒ bulunamad─▒ (bir using y├Ânergeniz veya derleme ba┼şvurunuz mu eksik?) [C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\FuzzProject\Fuzz.Domain\Fuzz.Domain.csproj]
+C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\FuzzProject\Fuzz.Domain\Services\OpenAiAgentService.cs(31,24): error CS0246: 'AiConfiguration' t├╝r├╝ veya ad alan─▒ ad─▒ bulunamad─▒ (bir using y├Ânergeniz veya derleme ba┼şvurunuz mu eksik?) [C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\FuzzProject\Fuzz.Domain\Fuzz.Domain.csproj]
+    0 Uyar─▒
+    2 Hata
+
+Ge├ğen S├╝re 00:00:01.60

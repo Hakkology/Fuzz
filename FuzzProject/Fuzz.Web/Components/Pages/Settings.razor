@@ -6,54 +6,91 @@
 @inject IDbContextFactory<FuzzDbContext> DbFactory
 @inject AuthenticationStateProvider AuthProvider
 @inject ISnackbar Snackbar
+@inject ILogger<Settings> Logger
 
-<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
-    <MudPaper Elevation="4" Class="pa-8 blur-card">
-        <MudStack Spacing="4">
-            <MudStack Row="true" AlignItems="AlignItems.Center">
-                <MudIcon Icon="@Icons.Material.Filled.Settings" Color="Color.Primary" Size="Size.Large" />
-                <MudText Typo="Typo.h4" Class="gradient-text">Ayarlar</MudText>
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-8">
+    <MudStack Spacing="6">
+        @* Başlık Bölümü *@
+        <MudPaper Elevation="4" Class="pa-8 blur-card">
+            <MudStack Spacing="4">
+                <MudStack Row="true" AlignItems="AlignItems.Center">
+                    <MudIcon Icon="@Icons.Material.Filled.Settings" Color="Color.Primary" Size="Size.Large" />
+                    <MudText Typo="Typo.h4" Class="gradient-text">AI Ayarları</MudText>
+                </MudStack>
+                <MudText Typo="Typo.body2" Style="color: #B0B0B0;">
+                    Sisteme OpenAI veya Gemini API anahtarlarınızı ekleyin ve aktif olanı seçin.
+                    <br /><b>Not:</b> Değişiklikler anında veritabanına kaydedilir.
+                </MudText>
             </MudStack>
-            
-            <MudText Typo="Typo.body2" Style="color: #B0B0B0;">
-                Agent'ın daha zeki çalışması için Google Gemini API anahtarınızı buraya ekleyin. 
-                Anahtarınızı <MudLink Href="https://aistudio.google.com/app/apikey" Target="_blank" Color="Color.Primary">Google AI Studio</MudLink> üzerinden ücretsiz alabilirsiniz.
-            </MudText>
+        </MudPaper>
 
-            <MudDivider Class="my-2" />
+        @* Yeni Anahtar Ekleme Formu *@
+        <MudPaper Elevation="4" Class="pa-8 blur-card">
+            <MudStack Spacing="4">
+                <MudText Typo="Typo.h6" Color="Color.Primary">Yeni Yapılandırma Ekle</MudText>
+                <MudGrid>
+                    <MudItem xs="12" sm="4">
+                        <MudSelect T="AiProvider" @bind-Value="_newConfig.Provider" Label="Sağlayıcı" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+                            <MudSelectItem Value="@AiProvider.Gemini">Gemini</MudSelectItem>
+                            <MudSelectItem Value="@AiProvider.OpenAI">OpenAI</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudSelect T="string" @bind-Value="_newConfig.ModelId" Label="Model" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+                            @foreach (var model in GetAvailableModels(_newConfig.Provider))
+                            {
+                                <MudSelectItem Value="@model">@model</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudTextField @bind-Value="_newConfig.ApiKey" Label="API Key" InputType="InputType.Password" Variant="Variant.Outlined" Required="true" />
+                    </MudItem>
+                </MudGrid>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddConfiguration" Disabled="_isSaving" FullWidth="false" Class="align-self-end">
+                    Listeye Ekle
+                </MudButton>
+            </MudStack>
+        </MudPaper>
 
+        @* Mevcut Yapılandırmalar Listesi *@
+        <MudPaper Elevation="4" Class="pa-8 blur-card">
+            <MudText Typo="Typo.h6" Color="Color.Primary" Class="mb-4">Mevcut Anahtarlar</MudText>
             @if (_isLoading)
             {
                 <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
             }
+            else if (!_configs.Any())
+            {
+                <MudAlert Severity="Severity.Info" Class="blur-alert">Henüz bir API anahtarı eklenmemiş.</MudAlert>
+            }
             else
             {
-                <MudTextField @bind-Value="_geminiKey" 
-                              Label="Gemini API Key" 
-                              Variant="Variant.Outlined" 
-                              InputType="@_passwordInput"
-                              Adornment="Adornment.End"
-                              AdornmentIcon="@_passwordIcon"
-                              OnAdornmentClick="TogglePassword"
-                              Placeholder="AIza..."
-                              HelperText="Sadece sizin tarafınızdan kullanılır ve şifreli tutulmaz (test amaçlı)." />
-
-                <MudButton Variant="Variant.Filled" 
-                           Color="Color.Primary" 
-                           Size="Size.Large" 
-                           FullWidth="true"
-                           OnClick="SaveKey"
-                           Disabled="_isSaving"
-                           Class="mt-4">
-                    @if (_isSaving)
-                    {
-                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                    }
-                    Kaydet
-                </MudButton>
+                <MudTable Items="_configs" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0" Class="transparent-table">
+                    <HeaderContent>
+                        <MudTh>Sağlayıcı</MudTh>
+                        <MudTh>Model</MudTh>
+                        <MudTh>API Key</MudTh>
+                        <MudTh>Durum (Aktif)</MudTh>
+                        <MudTh>İşlem</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Sağlayıcı">
+                            <MudChip T="string" Color="@(context.Provider == AiProvider.Gemini ? Color.Info : Color.Success)" Size="Size.Small">@context.Provider</MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Model">@context.ModelId</MudTd>
+                        <MudTd DataLabel="API Key">*******</MudTd>
+                        <MudTd DataLabel="Aktif">
+                            <MudSwitch T="bool" Value="context.IsActive" ValueChanged="@((val) => SetActive(context))" Color="Color.Primary" UnCheckedColor="Color.Default" />
+                        </MudTd>
+                        <MudTd>
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteConfig(context.Id))" Size="Size.Small" />
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
             }
-        </MudStack>
-    </MudPaper>
+        </MudPaper>
+    </MudStack>
 </MudContainer>
 
 <style>
@@ -70,46 +107,80 @@
         -webkit-text-fill-color: transparent;
         font-weight: 700;
     }
+
+    .transparent-table {
+        background: transparent !important;
+    }
+
+    .transparent-table th {
+        color: #FF6B35 !important;
+        font-weight: bold;
+    }
+
+    .transparent-table td {
+        color: white !important;
+    }
+
+    .blur-alert {
+        background: rgba(255, 255, 255, 0.05) !important;
+        color: white !important;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
 </style>
 
 @code {
-    private string _geminiKey = "";
+    private List<FuzzAiConfig> _configs = new();
+    private FuzzAiConfig _newConfig = new() { Provider = AiProvider.Gemini, ModelId = "gemini-3-flash-preview" };
     private string _userId = "";
     private bool _isLoading = true;
     private bool _isSaving = false;
-    private bool _showPassword = false;
-    private InputType _passwordInput = InputType.Password;
-    private string _passwordIcon = Icons.Material.Filled.VisibilityOff;
+
+    private readonly Dictionary<AiProvider, string[]> _providerModels = new()
+    {
+        { AiProvider.Gemini, new[] { "gemini-3-flash-preview", "gemini-1.5-flash", "gemini-1.5-pro" } },
+        { AiProvider.OpenAI, new[] { "gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo" } }
+    };
+
+    private string[] GetAvailableModels(AiProvider provider) => _providerModels.GetValueOrDefault(provider, Array.Empty<string>());
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadKey();
-    }
-
-    private void TogglePassword()
-    {
-        _showPassword = !_showPassword;
-        _passwordInput = _showPassword ? InputType.Text : InputType.Password;
-        _passwordIcon = _showPassword ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff;
-    }
-
-    private async Task LoadKey()
-    {
-        _isLoading = true;
-        try
+        try 
         {
             var authState = await AuthProvider.GetAuthenticationStateAsync();
             _userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
-
-            if (!string.IsNullOrEmpty(_userId))
+            
+            if (string.IsNullOrEmpty(_userId))
             {
-                using var db = await DbFactory.CreateDbContextAsync();
-                var keyEntry = await db.Keys.FirstOrDefaultAsync(k => k.UserId == _userId);
-                if (keyEntry != null)
-                {
-                    _geminiKey = keyEntry.GeminiApiKey;
-                }
+                Logger.LogWarning("Ayarlar sayfası: Kullanıcı ID bulunamadı.");
             }
+            
+            await LoadConfigs();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Ayarlar yüklenirken hata oluştu.");
+            Snackbar.Add("Sistem yüklenirken bir hata oluştu.", Severity.Error);
+        }
+    }
+
+    private async Task LoadConfigs()
+    {
+        if (string.IsNullOrEmpty(_userId)) return;
+
+        _isLoading = true;
+        try
+        {
+            using var db = await DbFactory.CreateDbContextAsync();
+            _configs = await db.AiConfigurations
+                .Where(c => c.UserId == _userId)
+                .OrderByDescending(c => c.IsActive)
+                .ThenBy(c => c.Provider)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Yapılandırmalar veritabanından çekilemedi.");
         }
         finally
         {
@@ -117,41 +188,98 @@
         }
     }
 
-    private async Task SaveKey()
+    private async Task AddConfiguration()
     {
-        if (string.IsNullOrEmpty(_userId)) return;
+        // Sanitize & Validate
+        _newConfig.ApiKey = _newConfig.ApiKey?.Trim() ?? "";
+        _newConfig.ModelId = _newConfig.ModelId?.Trim() ?? "";
+
+        if (string.IsNullOrEmpty(_newConfig.ApiKey))
+        {
+            Snackbar.Add("API Anahtarı boş olamaz.", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrEmpty(_userId))
+        {
+            Snackbar.Add("Kullanıcı oturumu bulunamadı. Lütfen tekrar giriş yapın.", Severity.Error);
+            return;
+        }
 
         _isSaving = true;
+        StateHasChanged();
+
         try
         {
             using var db = await DbFactory.CreateDbContextAsync();
-            var keyEntry = await db.Keys.FirstOrDefaultAsync(k => k.UserId == _userId);
+            
+            _newConfig.UserId = _userId;
+            _newConfig.UpdatedAt = DateTime.UtcNow;
+            _newConfig.IsActive = !_configs.Any(); // İlk eklenen otomatik aktif olsun
 
-            if (keyEntry == null)
-            {
-                db.Keys.Add(new FuzzKey 
-                { 
-                    UserId = _userId, 
-                    GeminiApiKey = _geminiKey, 
-                    UpdatedAt = DateTime.UtcNow 
-                });
-            }
-            else
-            {
-                keyEntry.GeminiApiKey = _geminiKey;
-                keyEntry.UpdatedAt = DateTime.UtcNow;
-            }
-
+            db.AiConfigurations.Add(_newConfig);
             await db.SaveChangesAsync();
-            Snackbar.Add("API Anahtarınız başarıyla kaydedildi.", Severity.Success);
+            
+            Logger.LogInformation("Yeni AI yapılandırması kaydedildi. Provider: {Provider}, User: {UserId}", _newConfig.Provider, _userId);
+
+            _newConfig = new FuzzAiConfig { Provider = AiProvider.Gemini, ModelId = "gemini-3-flash-preview" };
+            await LoadConfigs();
+            Snackbar.Add("Yapılandırma başarıyla eklendi.", Severity.Success);
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+            Logger.LogError(ex, "Yapılandırma kaydedilemedi.");
+            Snackbar.Add($"Kaydetme hatası: {ex.Message}", Severity.Error);
         }
         finally
         {
             _isSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SetActive(FuzzAiConfig config)
+    {
+        try
+        {
+            using var db = await DbFactory.CreateDbContextAsync();
+            var all = await db.AiConfigurations.Where(c => c.UserId == _userId).ToListAsync();
+            
+            foreach (var c in all)
+            {
+                c.IsActive = (c.Id == config.Id);
+            }
+
+            await db.SaveChangesAsync();
+            await LoadConfigs();
+            Snackbar.Add($"{config.Provider} şu an aktif sağlayıcı.", Severity.Info);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Aktif yapılandırma değiştirilemedi.");
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+    }
+
+
+    private async Task DeleteConfig(int id)
+    {
+        try
+        {
+            using var db = await DbFactory.CreateDbContextAsync();
+            var config = await db.AiConfigurations.FindAsync(id);
+            if (config != null)
+            {
+                db.AiConfigurations.Remove(config);
+                await db.SaveChangesAsync();
+                await LoadConfigs();
+                Snackbar.Add("Yapılandırma silindi.", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Yapılandırma silinemedi.");
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
         }
     }
 }
