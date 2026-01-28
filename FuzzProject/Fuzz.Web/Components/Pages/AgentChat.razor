@@ -1,0 +1,275 @@
+@page "/agent-chat"
+@rendermode InteractiveServer
+@using Fuzz.Domain.Services
+@inject IFuzzAgentService AgentService
+@inject AuthenticationStateProvider AuthProvider
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
+    <MudPaper Elevation="0" Class="pa-4 chat-container">
+        
+        @* Header *@
+        <div class="chat-header">
+            <MudAvatar Color="Color.Primary" Size="Size.Medium">
+                <MudIcon Icon="@Icons.Material.Filled.SmartToy" />
+            </MudAvatar>
+            <div class="chat-header-text">
+                <MudText Typo="Typo.h6">Fuzz Agent</MudText>
+                <MudText Typo="Typo.caption" Style="color: #B0B0B0;">Veritabanı asistanınız</MudText>
+            </div>
+            @if (!string.IsNullOrEmpty(_globalLastSql))
+            {
+                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Filled">SQL</MudChip>
+            }
+        </div>
+        
+        @* SQL Monitor - Collapsed by default *@
+        @if (!string.IsNullOrEmpty(_globalLastSql))
+        {
+            <MudPaper Elevation="0" Class="pa-3 mb-4 sql-monitor">
+                <MudText Typo="Typo.caption" Class="mb-1" Style="color: #ce9178; font-weight: bold;">
+                    Son SQL Sorgusu
+                </MudText>
+                <code class="sql-code">@_globalLastSql</code>
+            </MudPaper>
+        }
+
+        @* Chat Messages - Simplified *@
+        <div class="chat-messages" @ref="_chatContainer">
+            @foreach (var msg in _messages)
+            {
+                <div class="chat-bubble-wrapper @(msg.IsUser ? "user" : "agent")">
+                    @if (!msg.IsUser)
+                    {
+                        <MudAvatar Color="Color.Primary" Size="Size.Small" Class="chat-avatar">
+                            <MudIcon Icon="@Icons.Material.Filled.SmartToy" Size="Size.Small" />
+                        </MudAvatar>
+                    }
+                    <div class="chat-bubble @(msg.IsUser ? "user-bubble" : "agent-bubble")">
+                        <div class="chat-content">@((MarkupString)FormatMessage(msg.Content))</div>
+                        <span class="chat-time">@msg.Timestamp.ToString("HH:mm")</span>
+                    </div>
+                    @if (msg.IsUser)
+                    {
+                        <MudAvatar Color="Color.Secondary" Size="Size.Small" Class="chat-avatar">
+                            <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
+                        </MudAvatar>
+                    }
+                </div>
+            }
+            
+            @if (_isProcessing)
+            {
+                <div class="chat-bubble-wrapper agent">
+                    <MudAvatar Color="Color.Primary" Size="Size.Small" Class="chat-avatar">
+                        <MudIcon Icon="@Icons.Material.Filled.SmartToy" Size="Size.Small" />
+                    </MudAvatar>
+                    <div class="chat-bubble agent-bubble typing">
+                        <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Small" />
+                        <span class="ml-2">Düşünüyor...</span>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @* Input Area *@
+        <div class="chat-input-area">
+            <MudTextField @bind-Value="_currentInput" 
+                          Placeholder="Mesajınızı yazın..." 
+                          Variant="Variant.Outlined" 
+                          Margin="Margin.Dense" 
+                          OnKeyDown="@HandleKeyDown"
+                          Disabled="@_isProcessing"
+                          Immediate="true"
+                          FullWidth="true" />
+            <MudIconButton Icon="@Icons.Material.Filled.Send" 
+                           Color="Color.Primary" 
+                           Variant="Variant.Filled"
+                           OnClick="SendMessage" 
+                           Disabled="@(string.IsNullOrWhiteSpace(_currentInput) || _isProcessing)" />
+        </div>
+    </MudPaper>
+</MudContainer>
+
+<style>
+    .chat-container {
+        background: rgba(26, 26, 46, 0.7) !important;
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 107, 53, 0.15);
+        border-radius: 20px !important;
+        height: 80vh;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .chat-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid rgba(255, 107, 53, 0.1);
+        margin-bottom: 16px;
+    }
+    
+    .chat-header-text {
+        flex: 1;
+    }
+    
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding-right: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .chat-bubble-wrapper {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+    }
+    
+    .chat-bubble-wrapper.user {
+        flex-direction: row;
+        justify-content: flex-end;
+    }
+    
+    .chat-bubble-wrapper.agent {
+        flex-direction: row;
+        justify-content: flex-start;
+    }
+    
+    .chat-avatar {
+        flex-shrink: 0;
+    }
+    
+    .chat-bubble {
+        max-width: 75%;
+        padding: 12px 16px;
+        border-radius: 16px;
+        position: relative;
+    }
+    
+    .user-bubble {
+        background: linear-gradient(135deg, #FF6B35, #FF8F5E);
+        color: white;
+        border-bottom-right-radius: 4px;
+    }
+    
+    .agent-bubble {
+        background: rgba(40, 40, 60, 0.9);
+        color: #E0E0E0;
+        border-bottom-left-radius: 4px;
+        border: 1px solid rgba(255, 107, 53, 0.2);
+    }
+    
+    .agent-bubble.typing {
+        display: flex;
+        align-items: center;
+        padding: 8px 16px;
+    }
+    
+    .chat-content {
+        line-height: 1.5;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+    
+    .chat-time {
+        display: block;
+        font-size: 0.7rem;
+        opacity: 0.7;
+        margin-top: 4px;
+        text-align: right;
+    }
+    
+    .sql-monitor {
+        background: rgba(15, 15, 35, 0.8) !important;
+        border-left: 3px solid #FF6B35;
+        border-radius: 8px !important;
+    }
+    
+    .sql-code {
+        display: block;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.75rem;
+        color: #569cd6;
+        max-height: 50px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+    
+    .chat-input-area {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding-top: 16px;
+        border-top: 1px solid rgba(255, 107, 53, 0.1);
+        margin-top: auto;
+    }
+</style>
+
+@code {
+    private List<ChatMessage> _messages = new();
+    private string _currentInput = "";
+    private string _globalLastSql = "";
+    private bool _isProcessing = false;
+    private ElementReference _chatContainer;
+
+    private class ChatMessage
+    {
+        public string Content { get; set; } = "";
+        public bool IsUser { get; set; }
+        public DateTime Timestamp { get; set; }
+    }
+
+    private string FormatMessage(string content)
+    {
+        // Convert markdown-like formatting to HTML
+        content = System.Web.HttpUtility.HtmlEncode(content);
+        content = System.Text.RegularExpressions.Regex.Replace(content, @"\*\*(.+?)\*\*", "<strong>$1</strong>");
+        content = content.Replace("\n", "<br/>");
+        return content;
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_currentInput) && !_isProcessing)
+        {
+            await SendMessage();
+        }
+    }
+
+    private async Task SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(_currentInput)) return;
+
+        var input = _currentInput;
+        _currentInput = "";
+        _isProcessing = true;
+
+        _messages.Add(new ChatMessage { Content = input, IsUser = true, Timestamp = DateTime.Now });
+
+        try
+        {
+            var authState = await AuthProvider.GetAuthenticationStateAsync();
+            var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "guest";
+
+            var response = await AgentService.ProcessCommandAsync(input, userId);
+            
+            if (!string.IsNullOrEmpty(response.LastSql))
+                _globalLastSql = response.LastSql;
+
+            _messages.Add(new ChatMessage { Content = response.Answer, IsUser = false, Timestamp = DateTime.Now });
+        }
+        catch (Exception ex)
+        {
+            _messages.Add(new ChatMessage { Content = $"Hata: {ex.Message}", IsUser = false, Timestamp = DateTime.Now });
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+}

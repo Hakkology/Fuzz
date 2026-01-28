@@ -1,0 +1,227 @@
+@page "/Account/Register"
+
+@using System.ComponentModel.DataAnnotations
+@using System.Text
+@using System.Text.Encodings.Web
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.WebUtilities
+@using Fuzz.Domain.Entities
+@using MudBlazor.StaticInput
+
+@inject UserManager<FuzzUser> UserManager
+@inject IUserStore<FuzzUser> UserStore
+@inject SignInManager<FuzzUser> SignInManager
+@inject IEmailSender<FuzzUser> EmailSender
+@inject ILogger<Register> Logger
+@inject NavigationManager NavigationManager
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>Kayıt Ol - Fuzz</PageTitle>
+
+<div class="register-container">
+    <MudStaticPaper Class="register-card pa-8" Elevation="0">
+        <MudStack Spacing="4" AlignItems="AlignItems.Center">
+            <MudAvatar Size="Size.Large" Class="register-avatar">
+                <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Size="Size.Large" />
+            </MudAvatar>
+            
+            <MudText Typo="Typo.h4" Class="register-title">Kayıt Ol</MudText>
+            <MudText Typo="Typo.body2" Class="register-subtitle">Yeni bir hesap oluşturun</MudText>
+        </MudStack>
+
+        @if (!string.IsNullOrEmpty(Message))
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-4" Dense="true">@Message</MudAlert>
+        }
+
+        <EditForm Model="Input" method="post" OnValidSubmit="RegisterUser" FormName="register">
+            <DataAnnotationsValidator />
+            
+            <MudStack Spacing="3" Class="mt-6">
+                <MudStaticTextField @bind-Value="Input.Email" 
+                              Label="E-posta" 
+                              Variant="Variant.Outlined"
+                              InputType="InputType.Email"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Email"
+                              autocomplete="username"
+                              Required="true"
+                              RequiredError="E-posta gerekli" />
+                
+                <MudStaticTextField @bind-Value="Input.Password" 
+                              Label="Şifre" 
+                              Variant="Variant.Outlined"
+                              InputType="InputType.Password"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Password"
+                              autocomplete="new-password"
+                              Required="true"
+                              RequiredError="Şifre gerekli"
+                              HelperText="En az 6 karakter" />
+                
+                <MudStaticTextField @bind-Value="Input.ConfirmPassword" 
+                              Label="Şifre Tekrar" 
+                              Variant="Variant.Outlined"
+                              InputType="InputType.Password"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Password"
+                              autocomplete="new-password"
+                              Required="true"
+                              RequiredError="Şifre tekrarı gerekli" />
+                
+                <MudStaticButton type="submit"
+                           Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           Size="Size.Large"
+                           FullWidth="true"
+                           Class="mt-2">
+                    <MudIcon Icon="@Icons.Material.Filled.HowToReg" Class="mr-2" />
+                    Kayıt Ol
+                </MudStaticButton>
+            </MudStack>
+        </EditForm>
+
+        <MudDivider Class="my-4" />
+
+        <MudStack Spacing="2" AlignItems="AlignItems.Center">
+            <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
+                <MudText Typo="Typo.body2" Style="color: #B0B0B0;">Zaten hesabınız var mı?</MudText>
+                <MudLink Href="@(NavigationManager.GetUriWithQueryParameters("Account/Login", new Dictionary<string, object?> { ["ReturnUrl"] = ReturnUrl }))" 
+                         Color="Color.Primary" Typo="Typo.body2">
+                    Giriş Yap
+                </MudLink>
+            </MudStack>
+        </MudStack>
+    </MudStaticPaper>
+</div>
+
+<style>
+    .register-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 70vh;
+    }
+    
+    .register-card {
+        background: rgba(26, 26, 46, 0.8) !important;
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 107, 53, 0.2);
+        border-radius: 24px !important;
+        max-width: 420px;
+        width: 100%;
+    }
+    
+    .register-avatar {
+        width: 72px !important;
+        height: 72px !important;
+        background: linear-gradient(135deg, #FF6B35, #FF8F5E) !important;
+    }
+    
+    .register-title {
+        color: #FFFFFF;
+        font-weight: 700;
+    }
+    
+    .register-subtitle {
+        color: #B0B0B0;
+    }
+</style>
+
+@code {
+    private IEnumerable<IdentityError>? identityErrors;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = default!;
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    private string? Message => identityErrors is null ? null : $"Hata: {string.Join(", ", identityErrors.Select(error => error.Description))}";
+
+    protected override void OnInitialized()
+    {
+        Input ??= new();
+    }
+
+    public async Task RegisterUser(EditContext editContext)
+    {
+        var user = CreateUser();
+
+        await UserStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
+        var emailStore = GetEmailStore();
+        await emailStore.SetEmailAsync(user, Input.Email, CancellationToken.None);
+        var result = await UserManager.CreateAsync(user, Input.Password);
+
+        if (!result.Succeeded)
+        {
+            identityErrors = result.Errors;
+            return;
+        }
+
+        Logger.LogInformation("User created a new account with password.");
+
+        var userId = await UserManager.GetUserIdAsync(user);
+        var code = await UserManager.GenerateEmailConfirmationTokenAsync(user);
+        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+        var callbackUrl = NavigationManager.GetUriWithQueryParameters(
+            NavigationManager.ToAbsoluteUri("Account/ConfirmEmail").AbsoluteUri,
+            new Dictionary<string, object?> { ["userId"] = userId, ["code"] = code, ["returnUrl"] = ReturnUrl });
+
+        await EmailSender.SendConfirmationLinkAsync(user, Input.Email, HtmlEncoder.Default.Encode(callbackUrl));
+
+        if (UserManager.Options.SignIn.RequireConfirmedAccount)
+        {
+            RedirectManager.RedirectTo(
+                "Account/RegisterConfirmation",
+                new() { ["email"] = Input.Email, ["returnUrl"] = ReturnUrl });
+        }
+        else
+        {
+            await SignInManager.SignInAsync(user, isPersistent: false);
+            RedirectManager.RedirectTo(ReturnUrl);
+        }
+    }
+
+    private FuzzUser CreateUser()
+    {
+        try
+        {
+            return Activator.CreateInstance<FuzzUser>();
+        }
+        catch
+        {
+            throw new InvalidOperationException($"Can't create an instance of '{nameof(FuzzUser)}'. " +
+                $"Ensure that '{nameof(FuzzUser)}' is not an abstract class and has a parameterless constructor.");
+        }
+    }
+
+    private IUserEmailStore<FuzzUser> GetEmailStore()
+    {
+        if (!UserManager.SupportsUserEmail)
+        {
+            throw new NotSupportedException("The default UI requires a user store with email support.");
+        }
+        return (IUserEmailStore<FuzzUser>)UserStore;
+    }
+
+    private sealed class InputModel
+    {
+        [Required(ErrorMessage = "E-posta gerekli")]
+        [EmailAddress(ErrorMessage = "Geçerli bir e-posta adresi girin")]
+        [Display(Name = "E-posta")]
+        public string Email { get; set; } = "";
+
+        [Required(ErrorMessage = "Şifre gerekli")]
+        [StringLength(100, ErrorMessage = "Şifre en az {2} karakter olmalı.", MinimumLength = 6)]
+        [DataType(DataType.Password)]
+        [Display(Name = "Şifre")]
+        public string Password { get; set; } = "";
+
+        [DataType(DataType.Password)]
+        [Display(Name = "Şifre Tekrar")]
+        [Compare("Password", ErrorMessage = "Şifreler eşleşmiyor.")]
+        public string ConfirmPassword { get; set; } = "";
+    }
+}

@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Fuzz.Domain/Fuzz.Domain.csproj" />
+  <Project Path="Fuzz.Web.Client/Fuzz.Web.Client.csproj" />
+  <Project Path="Fuzz.Web/Fuzz.Web.csproj" />
+</Solution>
