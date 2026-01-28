@@ -31,9 +31,12 @@ builder.Services.AddAuthentication(options =>
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
-// Configure FuzzDbContext with Npgsql
-builder.Services.AddDbContext<FuzzDbContext>(options =>
+// Configure FuzzDbContext with Factory (Recommended for Blazor)
+builder.Services.AddDbContextFactory<FuzzDbContext>(options =>
     options.UseNpgsql(connectionString));
+
+// Also register the Scoped DbContext for services that don't use the factory (like Identity and SeedService)
+builder.Services.AddScoped(p => p.GetRequiredService<IDbContextFactory<FuzzDbContext>>().CreateDbContext());
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 

@@ -1,0 +1,157 @@
+@page "/Settings"
+@using Fuzz.Domain.Data
+@using Fuzz.Domain.Entities
+@using Microsoft.EntityFrameworkCore
+@rendermode InteractiveServer
+@inject IDbContextFactory<FuzzDbContext> DbFactory
+@inject AuthenticationStateProvider AuthProvider
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
+    <MudPaper Elevation="4" Class="pa-8 blur-card">
+        <MudStack Spacing="4">
+            <MudStack Row="true" AlignItems="AlignItems.Center">
+                <MudIcon Icon="@Icons.Material.Filled.Settings" Color="Color.Primary" Size="Size.Large" />
+                <MudText Typo="Typo.h4" Class="gradient-text">Ayarlar</MudText>
+            </MudStack>
+            
+            <MudText Typo="Typo.body2" Style="color: #B0B0B0;">
+                Agent'ın daha zeki çalışması için Google Gemini API anahtarınızı buraya ekleyin. 
+                Anahtarınızı <MudLink Href="https://aistudio.google.com/app/apikey" Target="_blank" Color="Color.Primary">Google AI Studio</MudLink> üzerinden ücretsiz alabilirsiniz.
+            </MudText>
+
+            <MudDivider Class="my-2" />
+
+            @if (_isLoading)
+            {
+                <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+            }
+            else
+            {
+                <MudTextField @bind-Value="_geminiKey" 
+                              Label="Gemini API Key" 
+                              Variant="Variant.Outlined" 
+                              InputType="@_passwordInput"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@_passwordIcon"
+                              OnAdornmentClick="TogglePassword"
+                              Placeholder="AIza..."
+                              HelperText="Sadece sizin tarafınızdan kullanılır ve şifreli tutulmaz (test amaçlı)." />
+
+                <MudButton Variant="Variant.Filled" 
+                           Color="Color.Primary" 
+                           Size="Size.Large" 
+                           FullWidth="true"
+                           OnClick="SaveKey"
+                           Disabled="_isSaving"
+                           Class="mt-4">
+                    @if (_isSaving)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    Kaydet
+                </MudButton>
+            }
+        </MudStack>
+    </MudPaper>
+</MudContainer>
+
+<style>
+    .blur-card {
+        background: rgba(26, 26, 46, 0.8) !important;
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 107, 53, 0.2);
+        border-radius: 20px !important;
+    }
+    
+    .gradient-text {
+        background: linear-gradient(135deg, #FF6B35, #FF8F5E);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 700;
+    }
+</style>
+
+@code {
+    private string _geminiKey = "";
+    private string _userId = "";
+    private bool _isLoading = true;
+    private bool _isSaving = false;
+    private bool _showPassword = false;
+    private InputType _passwordInput = InputType.Password;
+    private string _passwordIcon = Icons.Material.Filled.VisibilityOff;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadKey();
+    }
+
+    private void TogglePassword()
+    {
+        _showPassword = !_showPassword;
+        _passwordInput = _showPassword ? InputType.Text : InputType.Password;
+        _passwordIcon = _showPassword ? Icons.Material.Filled.Visibility : Icons.Material.Filled.VisibilityOff;
+    }
+
+    private async Task LoadKey()
+    {
+        _isLoading = true;
+        try
+        {
+            var authState = await AuthProvider.GetAuthenticationStateAsync();
+            _userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+
+            if (!string.IsNullOrEmpty(_userId))
+            {
+                using var db = await DbFactory.CreateDbContextAsync();
+                var keyEntry = await db.Keys.FirstOrDefaultAsync(k => k.UserId == _userId);
+                if (keyEntry != null)
+                {
+                    _geminiKey = keyEntry.GeminiApiKey;
+                }
+            }
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SaveKey()
+    {
+        if (string.IsNullOrEmpty(_userId)) return;
+
+        _isSaving = true;
+        try
+        {
+            using var db = await DbFactory.CreateDbContextAsync();
+            var keyEntry = await db.Keys.FirstOrDefaultAsync(k => k.UserId == _userId);
+
+            if (keyEntry == null)
+            {
+                db.Keys.Add(new FuzzKey 
+                { 
+                    UserId = _userId, 
+                    GeminiApiKey = _geminiKey, 
+                    UpdatedAt = DateTime.UtcNow 
+                });
+            }
+            else
+            {
+                keyEntry.GeminiApiKey = _geminiKey;
+                keyEntry.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await db.SaveChangesAsync();
+            Snackbar.Add("API Anahtarınız başarıyla kaydedildi.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}
