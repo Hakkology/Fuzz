@@ -47,10 +47,14 @@ builder.Services.AddIdentityCore<FuzzUser>(options =>
 
 builder.Services.AddSingleton<IEmailSender<FuzzUser>, IdentityNoOpEmailSender>();
 
-// Agent Service
+// Domain Services
 builder.Services.AddScoped<IFuzzAgentService, FuzzAgentService>();
+builder.Services.AddScoped<IFuzzSeedService, FuzzSeedService>();
 
 var app = builder.Build();
+
+// Automatic Database Migration & Seeding
+await InitializeDatabaseAsync(app);
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -76,3 +80,12 @@ app.MapAdditionalIdentityEndpoints();
 
 app.Run();
 
+// Database Initialization
+static async Task InitializeDatabaseAsync(WebApplication app)
+{
+    using var scope = app.Services.CreateScope();
+    var seedService = scope.ServiceProvider.GetRequiredService<IFuzzSeedService>();
+    
+    await seedService.ApplyMigrationsAsync();
+    await seedService.SeedDataAsync();
+}
