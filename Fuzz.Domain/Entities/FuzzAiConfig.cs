@@ -6,7 +6,8 @@ public enum AiProvider
 {
     Gemini,
     OpenAI,
-    Local
+    Local,
+    ElevenLabs
 }
 
 public class FuzzAiConfig

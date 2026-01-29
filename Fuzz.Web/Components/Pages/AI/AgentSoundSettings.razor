@@ -9,8 +9,30 @@
 <MudText Typo="Typo.body2" Class="mb-6">Configure agents capable of generating music from text (e.g. LlaMusic via Ollama).</MudText>
 
 <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="mt-4" ActivePanelIndexChanged="OnInnerTabChanged" Color="Color.Surface" SliderColor="Color.Tertiary">
-    <MudTabPanel Text="Cloud API" Icon="@Icons.Material.Filled.Cloud" Disabled="true">
-        <MudAlert Severity="Severity.Warning">Cloud based sound generation (Suno/Udio API) coming soon.</MudAlert>
+    <MudTabPanel Text="Cloud API" Icon="@Icons.Material.Filled.Cloud">
+        <MudGrid Spacing="3" Class="mt-2">
+            <MudItem xs="12" sm="4">
+                <MudSelect T="AiProvider" Value="_newConfig.Provider" ValueChanged="OnProviderChanged" Label="Provider" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter" AdornmentIcon="@Icons.Material.Filled.Api" AdornmentColor="Color.Tertiary">
+                    <MudSelectItem Value="@AiProvider.ElevenLabs">ElevenLabs (TTS)</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudSelect T="string" @bind-Value="_newConfig.ModelId" Label="Vocal Agent" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter" AdornmentIcon="@Icons.Material.Filled.RecordVoiceOver" AdornmentColor="Color.Tertiary">
+                    @foreach (var model in _availableModels)
+                    {
+                        <MudSelectItem Value="@model.ModelId">@model.DisplayName</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudTextField @bind-Value="_newConfig.ApiKey" Label="API Key" InputType="InputType.Password" Variant="Variant.Outlined" Required="true" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Key" />
+            </MudItem>
+            <MudItem xs="12" Class="d-flex justify-end">
+                <MudButton Variant="Variant.Filled" Color="Color.Tertiary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddConfiguration" Disabled="_isSaving" Size="Size.Large" Class="px-8 rounded-pill">
+                    Add Sound Agent
+                </MudButton>
+            </MudItem>
+        </MudGrid>
     </MudTabPanel>
     
     <MudTabPanel Text="Local (Ollama)" Icon="@Icons.Material.Filled.Computer">
@@ -50,8 +72,9 @@
     [Parameter] public EventCallback OnConfigAdded { get; set; }
     [Parameter] public EventCallback OnModelsUpdated { get; set; }
 
-    private FuzzAiConfig _newConfig = new() { Provider = AiProvider.Local, ModelId = "" };
+    private FuzzAiConfig _newConfig = new() { Provider = AiProvider.ElevenLabs, ModelId = "" };
     private List<FuzzAiModel> _availableModels = new();
+    private AiProvider _lastCloudProvider = AiProvider.ElevenLabs;
     private bool _isSaving = false;
 
     protected override void OnParametersSet()
@@ -59,20 +82,55 @@
         UpdateAvailableModels();
     }
 
-    private void OnInnerTabChanged(int index)
+    private async Task OnInnerTabChanged(int index)
     {
+        // 0 = Cloud, 1 = Local
+        if (index == 1) 
+        {
+            _newConfig.Provider = AiProvider.Local;
+            await RefreshLocalModels();
+        }
+        else 
+        {
+            _newConfig.Provider = _lastCloudProvider;
+        }
+        UpdateAvailableModels();
+    }
+
+    private void OnProviderChanged(AiProvider provider)
+    {
+        _newConfig.Provider = provider;
+        if (provider != AiProvider.Local)
+        {
+            _lastCloudProvider = provider;
+        }
         UpdateAvailableModels();
     }
 
     private void UpdateAvailableModels()
     {
-        _availableModels = AllModels
-            .Where(m => m.Provider == AiProvider.Local && m.Capabilities.HasFlag(AiCapabilities.Sound))
-            .ToList();
-
-        if (!_availableModels.Any(m => m.ModelId == _newConfig.ModelId))
+        if (_newConfig.Provider == AiProvider.Local)
         {
-            _newConfig.ModelId = _availableModels.FirstOrDefault()?.ModelId ?? "";
+            _availableModels = AllModels
+                .Where(m => m.Provider == AiProvider.Local && m.Capabilities.HasFlag(AiCapabilities.Sound))
+                .ToList();
+
+            if (!_availableModels.Any(m => m.ModelId == _newConfig.ModelId))
+            {
+                _newConfig.ModelId = _availableModels.FirstOrDefault()?.ModelId ?? "";
+            }
+        }
+        else
+        {
+            // Cloud providers: ElevenLabs etc.
+            _availableModels = AllModels
+                .Where(m => m.Provider == _newConfig.Provider && m.Capabilities.HasFlag(AiCapabilities.Sound))
+                .ToList();
+
+            if (!_availableModels.Any(m => m.ModelId == _newConfig.ModelId))
+            {
+                _newConfig.ModelId = _availableModels.FirstOrDefault()?.ModelId ?? "";
+            }
         }
     }
 
@@ -81,15 +139,18 @@
         try
         {
             var localModels = await ConfigService.GetLocalModelsAsync(_newConfig.ApiBase);
-            await OnModelsUpdated.InvokeAsync(); // Notify parent
+            await OnModelsUpdated.InvokeAsync(); 
             
             if (localModels.Any())
                 Snackbar.Add($"Local models synchronized: {localModels.Count} found.", Severity.Success);
             else
-                Snackbar.Add("No local models found.", Severity.Info);
+                Snackbar.Add("No local models found on the provided Ollama URL.", Severity.Warning);
+
+            UpdateAvailableModels();
         }
         catch (Exception ex)
         {
+             Snackbar.Add($"Connection error: {ex.Message}", Severity.Error);
              Logger.LogWarning("Error refreshing local models: {Message}", ex.Message);
         }
     }

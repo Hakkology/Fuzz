@@ -3,7 +3,8 @@
 @using Fuzz.Domain.Entities
 @using Fuzz.Domain.Services
 @using Fuzz.Domain.Services.Interfaces
-@inject ISoundAgentService SoundService
+@using Fuzz.Domain.Services.AI
+@inject IEnumerable<ISoundAgentService> SoundServices
 @inject IAiConfigService ConfigService
 @inject AuthenticationStateProvider AuthProvider
 @inject ISnackbar Snackbar
@@ -19,57 +20,67 @@
             </MudAvatar>
             <div class="sound-header-text">
                 <MudText Typo="Typo.h6">Fuzz Sound AI</MudText>
-                <MudText Typo="Typo.caption" Style="color: #B0B0B0;">Music generation assistant</MudText>
+                <MudText Typo="Typo.caption" Style="color: #B0B0B0;">@(_activeProvider == AiProvider.ElevenLabs ? "ElevenLabs Vocal Studio" : "Local Music Composer")</MudText>
             </div>
             
             <MudSpacer />
             
-            <MudChip T="string" Color="@(_hasActiveConfig ? Color.Success : Color.Error)" Size="Size.Small">
-                @(_hasActiveConfig ? "Ready" : "No Sound Config")
+            <MudChip T="string" Color="@(_hasActiveConfig ? Color.Success : Color.Error)" Size="Size.Small" Variant="Variant.Filled">
+                @(_hasActiveConfig ? $"{_activeProvider} Ready" : "Unconfigured")
             </MudChip>
         </div>
 
         @* Result Area *@
-        @if (!string.IsNullOrEmpty(_abcNotation))
+        @if (!string.IsNullOrEmpty(_responseContent))
         {
-            <MudPaper id="sheet-music" Elevation="0" Class="sheet-music-area pa-4" Style="background: white; min-height: 200px;">
-                @* ABCJS will render SVG here *@
-            </MudPaper>
+            @if (_isAudioData)
+            {
+                <MudPaper Elevation="0" Class="pa-6 d-flex flex-column align-center" Style="background: rgba(255,255,255,0.05); border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);">
+                    <MudIcon Icon="@Icons.Material.Filled.RecordVoiceOver" Size="Size.Large" Color="Color.Tertiary" Class="mb-3" />
+                    <audio controls src="@_responseContent" style="width: 100%; border-radius: 30px;"></audio>
+                    <MudText Typo="Typo.caption" Class="mt-3" Color="Color.Secondary">Audio generated successfully</MudText>
+                </MudPaper>
+            }
+            else
+            {
+                <MudPaper id="sheet-music" Elevation="0" Class="sheet-music-area pa-4" Style="background: white; min-height: 200px;">
+                    @* ABCJS will render SVG here *@
+                </MudPaper>
 
-            <MudPaper Elevation="0" Class="audio-controls pa-2 mt-2" Style="background: rgba(0,0,0,0.2);">
-                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-                    <MudStack Row="true">
-                        <MudIconButton Icon="@Icons.Material.Filled.PlayArrow" Color="Color.Success" OnClick="PlayAudio" Disabled="@(!_audioReady)" />
-                        <MudIconButton Icon="@Icons.Material.Filled.Stop" Color="Color.Error" OnClick="StopAudio" Disabled="@(!_audioReady)" />
-                        @if (_audioReady)
-                        {
-                           <MudText Typo="Typo.caption" Class="mt-2">Audio Synth Ready</MudText>
-                        }
-                        else
-                        {
-                           <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ml-2" />
-                           <MudText Typo="Typo.caption" Class="mt-2 ml-1">Loading Synth...</MudText>
-                        }
+                <MudPaper Elevation="0" Class="audio-controls pa-2 mt-2" Style="background: rgba(0,0,0,0.2);">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                        <MudStack Row="true">
+                            <MudIconButton Icon="@Icons.Material.Filled.PlayArrow" Color="Color.Success" OnClick="PlayAudio" Disabled="@(!_audioReady)" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Stop" Color="Color.Error" OnClick="StopAudio" Disabled="@(!_audioReady)" />
+                            @if (_audioReady)
+                            {
+                               <MudText Typo="Typo.caption" Class="mt-2">Audio Synth Ready</MudText>
+                            }
+                            else
+                            {
+                               <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ml-2" />
+                               <MudText Typo="Typo.caption" Class="mt-2 ml-1">Loading Synth...</MudText>
+                            }
+                        </MudStack>
+
+                        <a id="midi-download-link" style="display:none;" class="mud-button-root mud-button mud-button-filled mud-button-filled-primary mud-button-filled-size-small mud-ripple">
+                            <MudIcon Icon="@Icons.Material.Filled.Download" Size="Size.Small" Class="mr-1"/> Download MIDI
+                        </a>
                     </MudStack>
+                </MudPaper>
 
-                    @* Download Link placeholder *@
-                    <a id="midi-download-link" style="display:none;" class="mud-button-root mud-button mud-button-filled mud-button-filled-primary mud-button-filled-size-small mud-ripple">
-                        <MudIcon Icon="@Icons.Material.Filled.Download" Size="Size.Small" Class="mr-1"/> Download MIDI
-                    </a>
-                </MudStack>
-            </MudPaper>
-
-             <MudExpansionPanels Elevation="0" Class="mt-2">
-                <MudExpansionPanel Text="Show ABC Notation">
-                    <pre style="color: grey; font-size: 0.8em; white-space: pre-wrap;">@_abcNotation</pre>
-                </MudExpansionPanel>
-            </MudExpansionPanels>
+                <MudExpansionPanels Elevation="0" Class="mt-2">
+                    <MudExpansionPanel Text="Show ABC Notation">
+                        <pre style="color: grey; font-size: 0.8em; white-space: pre-wrap;">@_responseContent</pre>
+                    </MudExpansionPanel>
+                </MudExpansionPanels>
+            }
         }
 
         @* Input Area *@
         <div class="sound-input-area mt-4">
              <MudTextField @bind-Value="_prompt" 
-                          Placeholder="Describe the melody (e.g., 'Sad violin in A minor')..." 
+                          Placeholder="@(_activeProvider == AiProvider.ElevenLabs ? "Type text to speak..." : "Describe the melody...")" 
                           Variant="Variant.Outlined" 
                           Margin="Margin.Dense" 
                           OnKeyDown="@HandleKeyDown"
@@ -87,9 +98,6 @@
 
     </MudPaper>
 </MudContainer>
-
-<script src="js/abcjs-basic-min.js"></script>
-<script src="js/sound-interop.js"></script>
 
 <style>
     .sound-container {
@@ -117,7 +125,6 @@
         align-items: center;
     }
 
-    /* Target SVG and set responsive rules */
     #sheet-music svg {
         width: 100%;
         height: auto;
@@ -126,10 +133,12 @@
 
 @code {
     private string _prompt = "";
-    private string _abcNotation = "";
+    private string _responseContent = "";
     private bool _isProcessing = false;
     private bool _audioReady = false;
+    private bool _isAudioData = false;
     private bool _hasActiveConfig = false;
+    private AiProvider? _activeProvider;
     private string _userId = "";
 
     protected override async Task OnInitializedAsync()
@@ -137,8 +146,17 @@
         var authState = await AuthProvider.GetAuthenticationStateAsync();
         _userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "guest";
         
-        var activeConfig = await ConfigService.GetActiveConfigAsync(_userId, AiProvider.Local, mode: AiCapabilities.Sound);
+        await LoadActiveConfig();
+    }
+
+    private async Task LoadActiveConfig()
+    {
+        // Check for any active sound provider
+        var configs = await ConfigService.GetUserConfigsAsync(_userId);
+        var activeConfig = configs.FirstOrDefault(c => c.IsActive && c.Mode == AiCapabilities.Sound);
+        
         _hasActiveConfig = activeConfig != null;
+        _activeProvider = activeConfig?.Provider;
     }
 
     private async Task HandleKeyDown(KeyboardEventArgs e)
@@ -154,20 +172,42 @@
         if (!_hasActiveConfig) return;
         _isProcessing = true;
         _audioReady = false;
+        _isAudioData = false;
+        _responseContent = "";
         StateHasChanged();
 
         try
         {
-            var result = await SoundService.GenerateMusicAsync(_prompt, _userId);
-            _abcNotation = result.Answer;
+            // Resolve correct service
+            ISoundAgentService? service = null;
+            if (_activeProvider == AiProvider.Local)
+                service = SoundServices.OfType<LocalSoundService>().FirstOrDefault();
+            else if (_activeProvider == AiProvider.ElevenLabs)
+                service = SoundServices.OfType<ElevenLabsSoundService>().FirstOrDefault();
+            
+            if (service == null)
+            {
+                Snackbar.Add("Service not found for the active provider.", Severity.Error);
+                return;
+            }
+
+            var result = await service.GenerateMusicAsync(_prompt, _userId);
+            _responseContent = result.Answer;
+            
+            // Detect type
+            _isAudioData = _responseContent.StartsWith("data:audio");
+            
             StateHasChanged();
             
-            // Render ABC and init audio
-            await Task.Delay(200); 
-            _audioReady = await JSRuntime.InvokeAsync<bool>("soundInterop.renderAbc", "sheet-music", "audio-controls", _abcNotation);
-            
-            if(_audioReady) {
-                 await JSRuntime.InvokeVoidAsync("soundInterop.createMidiDownload", _abcNotation, "midi-download-link");
+            if (!_isAudioData && !string.IsNullOrEmpty(_responseContent))
+            {
+                // Render ABC and init audio
+                await Task.Delay(200); 
+                _audioReady = await JSRuntime.InvokeAsync<bool>("soundInterop.renderAbc", "sheet-music", "audio-controls", _responseContent);
+                
+                if(_audioReady) {
+                     await JSRuntime.InvokeVoidAsync("soundInterop.createMidiDownload", _responseContent, "midi-download-link");
+                }
             }
         }
         catch (Exception ex)
@@ -192,4 +232,5 @@
             await JSRuntime.InvokeVoidAsync("soundInterop.stopAudio");
     }
 }
+
 

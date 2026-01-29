@@ -43,10 +43,10 @@ public class LocalSoundService : ISoundAgentService
             var systemContext = @"You are a music composer AI. 
 YOUR GOAL: Generate a valid ABC Music Notation block based on the user's request.
 RULES:
-- OUTPUT ONLY the ABC notation. No conversational text.
-- Start with 'X:1'.
-- Include 'T:' (Title), 'M:' (Meter), 'L:' (Unit note length), 'K:' (Key).
-- Ensure the notation is valid for abcjs.";
+- OUTPUT ONLY the ABC notation. No conversational text, no explanations, no decorations at the end.
+- Use EXACT format for headers: 'X:1', 'T:Title', 'M:4/4', 'L:1/4', 'K:C' (always use colon ':'). 
+- Valid keys are letters like C, G, D, Am, etc.
+- Only return the raw ABC code.";
 
             _history.Clear();
             _history.Add(new SystemChatMessage(systemContext));
