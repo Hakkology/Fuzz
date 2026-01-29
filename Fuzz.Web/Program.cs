@@ -11,6 +11,7 @@ using Fuzz.Domain.Ai;
 using Fuzz.Domain.Ai.Tools;
 using MudBlazor.Services;
 using Fuzz.Domain.Services.Interfaces;
+using Fuzz.Domain.Services.Tools;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -53,6 +54,7 @@ builder.Services.AddSingleton<IEmailSender<FuzzUser>, IdentityNoOpEmailSender>()
 // Domain Services
 builder.Services.AddScoped<IAiTool, SqlAiTool>();
 builder.Services.AddScoped<IAiTool, TimeAiTool>();
+builder.Services.AddScoped<IAiTool, WebScraperAiTool>();
 
 // AI Services
 builder.Services.AddScoped<IAiConfigService, AiConfigService>();
