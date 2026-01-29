@@ -60,7 +60,6 @@ public class SchemaAiTool : IAiTool
 
             foreach (var word in forbiddenWords)
             {
-                // Use Regex to match WHOLE WORDS only. This prevents "CreatedAt" (which contains "CREATE") from triggering a false positive.
                 if (System.Text.RegularExpressions.Regex.IsMatch(sql, $@"\b{word}\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
                 {
                     return $"Guardrails Alert: Forbidden keyword '{word}' detected. DDL actions are not allowed. Only CRUD (SELECT, INSERT, UPDATE, DELETE) is permitted.";
