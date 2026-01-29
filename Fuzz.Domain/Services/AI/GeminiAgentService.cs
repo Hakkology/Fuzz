@@ -57,11 +57,11 @@ public class GeminiAgentService : IFuzzAgentService
 
     public void ClearHistory() => _history.Clear();
 
-    #region Private Methods
+
 
     private void InitializeHistory(string userId, bool useTools)
     {
-        // Simple check if first message exists. A more robust check might verify system prompt content.
+
         if (_history.Count == 0)
         {
             _history.Clear();
@@ -164,5 +164,5 @@ public class GeminiAgentService : IFuzzAgentService
         }
     }
 
-    #endregion
+
 }

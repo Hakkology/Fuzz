@@ -58,7 +58,7 @@ public class LocalAgentService : IFuzzAgentService
 
     public void ClearHistory() => _history.Clear();
 
-    #region Private Methods
+
 
     private static ChatClient CreateClient(FuzzAiConfig config)
     {
@@ -74,15 +74,7 @@ public class LocalAgentService : IFuzzAgentService
 
     private void InitializeHistory(string userId, bool useTools)
     {
-        // If the mode changed (e.g. from tools to no-tools or vice versa which implies a prompt change),
-        // we might want to reset. For simplicity, we check if empty or if system prompt matches intent.
-        // But simpler: just reset if empty.
-        // To properly switch modes without clearing history is complex with different system prompts.
-        // For now, we'll just check if history is empty. 
-        // A better approach: if user switches chat pages, history might need clearing or be separate services.
-        // Since we split the pages (AgentChat vs AgentTodoChat), separate instances might be better, or just clear history on mode switch.
-        // But here we are reusing the singleton/scoped service.
-        // Let's check the system prompt content to decide if we need to reset.
+
         
         bool currentIsTools = _history.Count > 0 && _history[0] is SystemChatMessage scm && scm.Content[0].Text.Contains("You are Fuzz");
         
@@ -171,5 +163,5 @@ public class LocalAgentService : IFuzzAgentService
             _history.RemoveRange(1, 2);
     }
 
-    #endregion
+
 }

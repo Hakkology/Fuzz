@@ -27,7 +27,7 @@ public class AiConfigService : IAiConfigService
         _logger = logger;
     }
 
-    #region Helper Methods
+
 
     private static string NormalizeOllamaUrl(string? apiBase)
     {
@@ -53,9 +53,9 @@ public class AiConfigService : IAiConfigService
         }
     }
 
-    #endregion
 
-    #region Configuration Methods
+
+
 
     public async Task<FuzzAiConfig?> GetActiveConfigAsync(string userId, AiProvider? provider = null, AiCapabilities mode = AiCapabilities.Text)
     {
@@ -117,9 +117,9 @@ public class AiConfigService : IAiConfigService
         await db.SaveChangesAsync();
     }
 
-    #endregion
 
-    #region Model Methods
+
+
 
     public async Task<List<FuzzAiModel>> GetModelsAsync(AiProvider? provider = null, AiCapabilities? capability = null)
     {
@@ -282,9 +282,9 @@ public class AiConfigService : IAiConfigService
         return deletedCount;
     }
 
-    #endregion
 
-    #region Parameters Methods
+
+
 
     public async Task<FuzzAiParameters?> GetParametersAsync(int configId)
     {
@@ -314,5 +314,5 @@ public class AiConfigService : IAiConfigService
         await db.SaveChangesAsync();
     }
 
-    #endregion
+
 }

@@ -14,7 +14,7 @@
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-8 mb-16">
     <MudStack Spacing="6">
         
-        @* Header & Intro *@
+
         <MudText Typo="Typo.h4" Color="Color.Primary" Style="font-weight: 700;">Agent Settings</MudText>
         <MudText Typo="Typo.subtitle1" Color="Color.Secondary">Manage your Text and Visual AI agents. Connect to Cloud APIs or Local Ollama models.</MudText>
 
@@ -22,7 +22,7 @@
         <MudCard Elevation="3" Class="rounded-lg">
             <MudTabs ActivePanelIndex="_activeTabIndex" Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6" Color="Color.Transparent">
                 
-                @* 1. TEXT AI AGENTS *@
+
                 <MudTabPanel Text="Text AI Agents" Icon="@Icons.Material.Filled.Chat" Style="font-weight: bold;">
                     <AgentTextSettings 
                         UserId="@_userId" 
@@ -31,7 +31,7 @@
                         OnModelsUpdated="LoadModels" />
                 </MudTabPanel>
 
-                @* 2. VISUAL AI AGENTS *@
+
                 <MudTabPanel Text="Visual AI Agents" Icon="@Icons.Material.Filled.ImageSearch" Style="font-weight: bold;">
                     <AgentVisualSettings 
                         UserId="@_userId" 
@@ -40,7 +40,7 @@
                         OnModelsUpdated="LoadModels" />
                 </MudTabPanel>
 
-                @* 3. SOUND AI AGENTS *@
+
                 <MudTabPanel Text="Sound AI Agents" Icon="@Icons.Material.Filled.MusicNote" Style="font-weight: bold;">
                     <AgentSoundSettings 
                         UserId="@_userId" 
