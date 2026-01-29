@@ -151,6 +151,7 @@ public class AiConfigService : IAiConfigService
             // Detect capabilities
             var caps = AiCapabilities.Text; 
             if (IsVisualModel(model)) caps |= AiCapabilities.Visual;
+            if (IsSoundModel(model)) caps |= AiCapabilities.Sound;
 
             if (!existingModels.TryGetValue(modelId, out var entity))
             {
@@ -188,6 +189,12 @@ public class AiConfigService : IAiConfigService
         // Fallback to name heuristic
         var lower = model.Name.ToLower();
         return lower.Contains("llava") || lower.Contains("vision") || lower.Contains("moondream") || lower.Contains("bakllava");
+    }
+
+    private static bool IsSoundModel(OllamaModel model)
+    {
+        var lower = model.Name.ToLower();
+        return lower.Contains("music") || lower.Contains("sound") || lower.Contains("llamusic");
     }
 
     public async Task AddModelAsync(FuzzAiModel model)

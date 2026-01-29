@@ -40,6 +40,15 @@
                         OnModelsUpdated="LoadModels" />
                 </MudTabPanel>
 
+                @* 3. SOUND AI AGENTS *@
+                <MudTabPanel Text="Sound AI Agents" Icon="@Icons.Material.Filled.MusicNote" Style="font-weight: bold;">
+                    <AgentSoundSettings 
+                        UserId="@_userId" 
+                        AllModels="@_allModels" 
+                        OnConfigAdded="LoadConfigs" 
+                        OnModelsUpdated="LoadModels" />
+                </MudTabPanel>
+
             </MudTabs>
         </MudCard>
 
@@ -84,7 +93,8 @@
                             </MudCardHeader>
                             <MudCardContent>
                                 <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@(config.Mode == AiCapabilities.Visual ? Color.Secondary : Color.Primary)">
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" 
+                                             Color="@(config.Mode == AiCapabilities.Visual ? Color.Secondary : (config.Mode == AiCapabilities.Sound ? Color.Tertiary : Color.Primary))">
                                         @config.Mode
                                     </MudChip>
                                      <MudSwitch T="bool" Value="config.IsActive" ValueChanged="@((bool val) => SetActive(config))" Color="Color.Success" Label="@(config.IsActive ? "Active" : "Inactive")" LabelPosition="LabelPosition.Start" />

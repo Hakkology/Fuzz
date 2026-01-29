@@ -1,0 +1,195 @@
+@page "/agent-sound"
+@rendermode InteractiveServer
+@using Fuzz.Domain.Entities
+@using Fuzz.Domain.Services
+@using Fuzz.Domain.Services.Interfaces
+@inject ISoundAgentService SoundService
+@inject IAiConfigService ConfigService
+@inject AuthenticationStateProvider AuthProvider
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
+    <MudPaper Elevation="0" Class="sound-container">
+        
+        @* Header *@
+        <div class="sound-header">
+            <MudAvatar Color="Color.Tertiary" Size="Size.Medium">
+                <MudIcon Icon="@Icons.Material.Filled.MusicNote" />
+            </MudAvatar>
+            <div class="sound-header-text">
+                <MudText Typo="Typo.h6">Fuzz Sound AI</MudText>
+                <MudText Typo="Typo.caption" Style="color: #B0B0B0;">Music generation assistant</MudText>
+            </div>
+            
+            <MudSpacer />
+            
+            <MudChip T="string" Color="@(_hasActiveConfig ? Color.Success : Color.Error)" Size="Size.Small">
+                @(_hasActiveConfig ? "Ready" : "No Sound Config")
+            </MudChip>
+        </div>
+
+        @* Result Area *@
+        @if (!string.IsNullOrEmpty(_abcNotation))
+        {
+            <MudPaper id="sheet-music" Elevation="0" Class="sheet-music-area pa-4" Style="background: white; min-height: 200px;">
+                @* ABCJS will render SVG here *@
+            </MudPaper>
+
+            <MudPaper Elevation="0" Class="audio-controls pa-2 mt-2" Style="background: rgba(0,0,0,0.2);">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                    <MudStack Row="true">
+                        <MudIconButton Icon="@Icons.Material.Filled.PlayArrow" Color="Color.Success" OnClick="PlayAudio" Disabled="@(!_audioReady)" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Stop" Color="Color.Error" OnClick="StopAudio" Disabled="@(!_audioReady)" />
+                        @if (_audioReady)
+                        {
+                           <MudText Typo="Typo.caption" Class="mt-2">Audio Synth Ready</MudText>
+                        }
+                        else
+                        {
+                           <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ml-2" />
+                           <MudText Typo="Typo.caption" Class="mt-2 ml-1">Loading Synth...</MudText>
+                        }
+                    </MudStack>
+
+                    @* Download Link placeholder *@
+                    <a id="midi-download-link" style="display:none;" class="mud-button-root mud-button mud-button-filled mud-button-filled-primary mud-button-filled-size-small mud-ripple">
+                        <MudIcon Icon="@Icons.Material.Filled.Download" Size="Size.Small" Class="mr-1"/> Download MIDI
+                    </a>
+                </MudStack>
+            </MudPaper>
+
+             <MudExpansionPanels Elevation="0" Class="mt-2">
+                <MudExpansionPanel Text="Show ABC Notation">
+                    <pre style="color: grey; font-size: 0.8em; white-space: pre-wrap;">@_abcNotation</pre>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+        }
+
+        @* Input Area *@
+        <div class="sound-input-area mt-4">
+             <MudTextField @bind-Value="_prompt" 
+                          Placeholder="Describe the melody (e.g., 'Sad violin in A minor')..." 
+                          Variant="Variant.Outlined" 
+                          Margin="Margin.Dense" 
+                          OnKeyDown="@HandleKeyDown"
+                          Disabled="@(_isProcessing || !_hasActiveConfig)"
+                          Immediate="true"
+                          FullWidth="true"
+                          Lines="2">
+            </MudTextField>
+             <MudIconButton Icon="@(_isProcessing ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.Send)" 
+                           Color="Color.Tertiary" 
+                           Variant="Variant.Filled"
+                           OnClick="GenerateMusic" 
+                           Disabled="@(string.IsNullOrWhiteSpace(_prompt) || !_hasActiveConfig || _isProcessing)" />
+        </div>
+
+    </MudPaper>
+</MudContainer>
+
+<script src="js/abcjs-basic-min.js"></script>
+<script src="js/sound-interop.js"></script>
+
+<style>
+    .sound-container {
+        background: rgba(26, 26, 46, 0.7) !important;
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 105, 180, 0.2); 
+        border-radius: 20px !important;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 24px;
+    }
+    
+    .sound-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid rgba(255, 105, 180, 0.15);
+    }
+
+    .sound-input-area {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    /* Target SVG and set responsive rules */
+    #sheet-music svg {
+        width: 100%;
+        height: auto;
+    }
+</style>
+
+@code {
+    private string _prompt = "";
+    private string _abcNotation = "";
+    private bool _isProcessing = false;
+    private bool _audioReady = false;
+    private bool _hasActiveConfig = false;
+    private string _userId = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        _userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "guest";
+        
+        var activeConfig = await ConfigService.GetActiveConfigAsync(_userId, AiProvider.Local, mode: AiCapabilities.Sound);
+        _hasActiveConfig = activeConfig != null;
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && e.CtrlKey && !_isProcessing)
+        {
+            await GenerateMusic();
+        }
+    }
+
+    private async Task GenerateMusic()
+    {
+        if (!_hasActiveConfig) return;
+        _isProcessing = true;
+        _audioReady = false;
+        StateHasChanged();
+
+        try
+        {
+            var result = await SoundService.GenerateMusicAsync(_prompt, _userId);
+            _abcNotation = result.Answer;
+            StateHasChanged();
+            
+            // Render ABC and init audio
+            await Task.Delay(200); 
+            _audioReady = await JSRuntime.InvokeAsync<bool>("soundInterop.renderAbc", "sheet-music", "audio-controls", _abcNotation);
+            
+            if(_audioReady) {
+                 await JSRuntime.InvokeVoidAsync("soundInterop.createMidiDownload", _abcNotation, "midi-download-link");
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private async Task PlayAudio()
+    {
+        if (_audioReady)
+            await JSRuntime.InvokeVoidAsync("soundInterop.playAudio");
+    }
+
+    private async Task StopAudio()
+    {
+        if (_audioReady)
+            await JSRuntime.InvokeVoidAsync("soundInterop.stopAudio");
+    }
+}
+

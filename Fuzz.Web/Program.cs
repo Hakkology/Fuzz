@@ -67,6 +67,9 @@ builder.Services.AddScoped<IVisualAgentService, GeminiVisualService>();
 builder.Services.AddScoped<IVisualAgentService, OpenAiVisualService>();
 builder.Services.AddScoped<IVisualAgentService, LocalVisualService>();
 
+// Sound AI Services
+builder.Services.AddScoped<ISoundAgentService, LocalSoundService>();
+
 builder.Services.AddScoped<IFuzzSeedService, FuzzSeedService>();
 
 var app = builder.Build();
