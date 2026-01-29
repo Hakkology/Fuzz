@@ -26,7 +26,7 @@ public class LocalVisualService : IVisualAgentService
     {
         try
         {
-            var configData = await _configService.GetActiveConfigAsync(userId, AiProvider.Local, isVisual: true);
+            var configData = await _configService.GetActiveConfigAsync(userId, AiProvider.Local, mode: AiCapabilities.Visual);
             if (configData == null)
                 return new FuzzResponse { Answer = "⚠️ Please configure an active Local Visual AI (LLaVA) in Settings." };
 

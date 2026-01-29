@@ -29,7 +29,7 @@ public class FuzzAiConfig
 
     public bool IsActive { get; set; }
 
-    public bool IsVisualRecognition { get; set; } = false;
+    public AiCapabilities Mode { get; set; } = AiCapabilities.Text;
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

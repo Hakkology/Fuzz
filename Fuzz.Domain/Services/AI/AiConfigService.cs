@@ -57,11 +57,11 @@ public class AiConfigService : IAiConfigService
 
     #region Configuration Methods
 
-    public async Task<FuzzAiConfig?> GetActiveConfigAsync(string userId, AiProvider provider, bool isVisual = false)
+    public async Task<FuzzAiConfig?> GetActiveConfigAsync(string userId, AiProvider provider, AiCapabilities mode = AiCapabilities.Text)
     {
         using var db = await _dbFactory.CreateDbContextAsync();
         return await db.AiConfigurations
-            .FirstOrDefaultAsync(c => c.UserId == userId && c.IsActive && c.Provider == provider && c.IsVisualRecognition == isVisual);
+            .FirstOrDefaultAsync(c => c.UserId == userId && c.IsActive && c.Provider == provider && c.Mode == mode);
     }
 
     public async Task<List<FuzzAiConfig>> GetUserConfigsAsync(string userId)
@@ -98,12 +98,12 @@ public class AiConfigService : IAiConfigService
         var targetConfig = await db.AiConfigurations.FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId);
         if (targetConfig == null) return;
 
-        // Deactivate other configs of the same type (Text vs Visual)
-        var sameTypeConfigs = await db.AiConfigurations
-            .Where(c => c.UserId == userId && c.IsVisualRecognition == targetConfig.IsVisualRecognition)
+        // Deactivate other configs of the same MODE (e.g. deactivate other Text agents)
+        var sameModeConfigs = await db.AiConfigurations
+            .Where(c => c.UserId == userId && c.Mode == targetConfig.Mode)
             .ToListAsync();
             
-        sameTypeConfigs.ForEach(c => c.IsActive = false);
+        sameModeConfigs.ForEach(c => c.IsActive = false);
         
         targetConfig.IsActive = true;
         await db.SaveChangesAsync();
@@ -113,14 +113,22 @@ public class AiConfigService : IAiConfigService
 
     #region Model Methods
 
-    public async Task<List<FuzzAiModel>> GetModelsAsync(AiProvider? provider = null, bool? isVisual = null)
+    public async Task<List<FuzzAiModel>> GetModelsAsync(AiProvider? provider = null, AiCapabilities? capability = null)
     {
         using var db = await _dbFactory.CreateDbContextAsync();
         var query = db.FuzzAiModels.AsQueryable();
         if (provider.HasValue)
             query = query.Where(m => m.Provider == provider.Value);
-        if (isVisual.HasValue)
-            query = query.Where(m => m.IsVisualRecognition == isVisual.Value);
+        
+        if (capability.HasValue)
+        {
+            // Simple bitwise check: (Capabilities & TestedCap) == TestedCap
+            // EF Core might need raw SQL or supported translation.
+            // For now, attempting standard Enum usage which EF Core 7+ supports better.
+            var cap = capability.Value;
+            query = query.Where(m => m.Capabilities.HasFlag(cap)); 
+        }
+            
         return await query.OrderBy(m => m.DisplayName).ToListAsync();
     }
 
@@ -139,7 +147,10 @@ public class AiConfigService : IAiConfigService
         foreach (var model in ollamaModels)
         {
             var modelId = model.Name.ToLower().Trim();
-            bool isVisual = IsVisualModel(model);
+            
+            // Detect capabilities
+            var caps = AiCapabilities.Text; 
+            if (IsVisualModel(model)) caps |= AiCapabilities.Visual;
 
             if (!existingModels.TryGetValue(modelId, out var entity))
             {
@@ -153,8 +164,8 @@ public class AiConfigService : IAiConfigService
                 db.FuzzAiModels.Add(entity);
             }
 
-            entity.IsVisualRecognition = isVisual;
-            entity.IsTextCapable = !isVisual; 
+            // Sync capabilities
+            entity.Capabilities = caps; 
 
             result.Add(entity);
         }

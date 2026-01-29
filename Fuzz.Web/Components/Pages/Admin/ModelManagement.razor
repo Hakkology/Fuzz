@@ -27,10 +27,16 @@
                 <MudItem xs="12" sm="4">
                     <MudTextField @bind-Value="_newModel.DisplayName" Label="Display Name (e.g., GPT-5 Next Gen)" Variant="Variant.Outlined" Required="true" />
                 </MudItem>
-                <MudItem xs="12" sm="2">
-                    <MudCheckBox @bind-Value="_newModel.IsVisualRecognition" Label="Visual AI" Color="Color.Secondary" />
+                <MudItem xs="12" sm="8">
+                    <MudText Typo="Typo.subtitle2">Capabilities</MudText>
+                    <MudStack Row="true">
+                        <MudCheckBox @bind-Value="_capText" Label="Text" Color="Color.Primary" />
+                        <MudCheckBox @bind-Value="_capVisual" Label="Visual" Color="Color.Secondary" />
+                        <MudCheckBox @bind-Value="_capSound" Label="Sound" Color="Color.Info" />
+                        <MudCheckBox @bind-Value="_capVoice" Label="Voice" Color="Color.Warning" />
+                    </MudStack>
                 </MudItem>
-                <MudItem xs="12" sm="2">
+                <MudItem xs="12" sm="4">
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveModel" FullWidth="true" Style="height: 56px">Add</MudButton>
                 </MudItem>
             </MudGrid>
@@ -43,7 +49,7 @@
                     <MudTh>Model ID</MudTh>
                     <MudTh>Display Name</MudTh>
                     <MudTh>Type</MudTh>
-                    <MudTh>Visual</MudTh>
+                    <MudTh>Capabilities</MudTh>
                     <MudTh>Action</MudTh>
                 </HeaderContent>
                 <RowTemplate>
@@ -56,10 +62,10 @@
                         @(context.IsCustom ? "Custom" : "Global")
                     </MudTd>
                     <MudTd>
-                        @if (context.IsVisualRecognition)
-                        {
-                            <MudIcon Icon="@Icons.Material.Filled.Visibility" Color="Color.Secondary" Size="Size.Small" />
-                        }
+                         @if (context.Capabilities.HasFlag(AiCapabilities.Text)) { <MudIcon Icon="@Icons.Material.Filled.TextFormat" Title="Text" Size="Size.Small" Class="mr-1"/> }
+                         @if (context.Capabilities.HasFlag(AiCapabilities.Visual)) { <MudIcon Icon="@Icons.Material.Filled.Visibility" Title="Visual" Color="Color.Secondary" Size="Size.Small" Class="mr-1"/> }
+                         @if (context.Capabilities.HasFlag(AiCapabilities.Sound)) { <MudIcon Icon="@Icons.Material.Filled.MusicNote" Title="Sound" Color="Color.Info" Size="Size.Small" Class="mr-1"/> }
+                         @if (context.Capabilities.HasFlag(AiCapabilities.Voice)) { <MudIcon Icon="@Icons.Material.Filled.Mic" Title="Voice" Color="Color.Warning" Size="Size.Small" Class="mr-1"/> }
                     </MudTd>
                     <MudTd>
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteModel(context.Id))" />
@@ -91,6 +97,12 @@
 @code {
     private List<FuzzAiModel> _models = new();
     private FuzzAiModel _newModel = new() { Provider = AiProvider.Gemini };
+    
+    // Checkbox bindings
+    private bool _capText = true;
+    private bool _capVisual;
+    private bool _capSound;
+    private bool _capVoice;
 
     protected override async Task OnInitializedAsync()
     {
@@ -115,9 +127,27 @@
             return;
         }
 
+        // Combine capabilities
+        AiCapabilities caps = 0;
+        if (_capText) caps |= AiCapabilities.Text;
+        if (_capVisual) caps |= AiCapabilities.Visual;
+        if (_capSound) caps |= AiCapabilities.Sound;
+        if (_capVoice) caps |= AiCapabilities.Voice;
+        
+        if (caps == 0) caps = AiCapabilities.Text; // Default Fallback
+
+        _newModel.Capabilities = caps;
+
         await ConfigService.AddModelAsync(_newModel);
         Snackbar.Add("Model added successfully.", Severity.Success);
+        
+        // Reset
         _newModel = new FuzzAiModel { Provider = _newModel.Provider };
+        _capText = true;
+        _capVisual = false;
+        _capSound = false;
+        _capVoice = false;
+
         await RefreshList();
     }
 

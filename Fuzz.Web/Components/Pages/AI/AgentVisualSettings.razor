@@ -114,14 +114,14 @@
         {
              // Visual Tab: Only visual capable
             _availableModels = AllModels
-                .Where(m => m.Provider == AiProvider.Local && m.IsVisualRecognition)
+                .Where(m => m.Provider == AiProvider.Local && m.Capabilities.HasFlag(AiCapabilities.Visual))
                 .ToList();
         }
         else
         {
              // Visual Tab: Only visual capable
             _availableModels = AllModels
-                .Where(m => m.Provider == _newConfig.Provider && m.IsVisualRecognition)
+                .Where(m => m.Provider == _newConfig.Provider && m.Capabilities.HasFlag(AiCapabilities.Visual))
                 .ToList();
         }
 
@@ -158,7 +158,7 @@
         {
             _newConfig.UserId = UserId;
             _newConfig.UpdatedAt = DateTime.UtcNow;
-            _newConfig.IsVisualRecognition = true; // VISUAL Component
+            _newConfig.Mode = AiCapabilities.Visual; // VISUAL Component
 
             await ConfigService.AddConfigAsync(_newConfig);
             Snackbar.Add("Agent configured successfully.", Severity.Success);

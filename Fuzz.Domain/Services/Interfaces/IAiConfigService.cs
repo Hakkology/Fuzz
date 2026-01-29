@@ -4,9 +4,9 @@ namespace Fuzz.Domain.Services.Interfaces;
 
 public interface IAiConfigService
 {
-    Task<FuzzAiConfig?> GetActiveConfigAsync(string userId, AiProvider provider, bool isVisual = false);
+    Task<FuzzAiConfig?> GetActiveConfigAsync(string userId, AiProvider provider, AiCapabilities mode = AiCapabilities.Text);
     Task<List<FuzzAiConfig>> GetUserConfigsAsync(string userId);
-    Task<List<FuzzAiModel>> GetModelsAsync(AiProvider? provider = null, bool? isVisual = null);
+    Task<List<FuzzAiModel>> GetModelsAsync(AiProvider? provider = null, AiCapabilities? capability = null);
     Task<List<FuzzAiModel>> GetLocalModelsAsync(string? apiBase = null);
     Task AddConfigAsync(FuzzAiConfig config);
     Task DeleteConfigAsync(int id);

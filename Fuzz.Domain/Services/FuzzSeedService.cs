@@ -87,29 +87,29 @@ public class FuzzSeedService : IFuzzSeedService
             var defaultModels = new List<FuzzAiModel>
             {
                 // Gemini (Vision Capable)
-                new() { Provider = AiProvider.Gemini, ModelId = "gemini-1.5-flash", DisplayName = "Gemini 1.5 Flash", IsVisualRecognition = true, IsTextCapable = true },
-                new() { Provider = AiProvider.Gemini, ModelId = "gemini-1.5-pro", DisplayName = "Gemini 1.5 Pro", IsVisualRecognition = true, IsTextCapable = true },
-                new() { Provider = AiProvider.Gemini, ModelId = "gemini-2.0-flash", DisplayName = "Gemini 2.0 Flash", IsVisualRecognition = true, IsTextCapable = true },
+                new() { Provider = AiProvider.Gemini, ModelId = "gemini-1.5-flash", DisplayName = "Gemini 1.5 Flash", Capabilities = AiCapabilities.Text | AiCapabilities.Visual },
+                new() { Provider = AiProvider.Gemini, ModelId = "gemini-1.5-pro", DisplayName = "Gemini 1.5 Pro", Capabilities = AiCapabilities.Text | AiCapabilities.Visual },
+                new() { Provider = AiProvider.Gemini, ModelId = "gemini-2.0-flash", DisplayName = "Gemini 2.0 Flash", Capabilities = AiCapabilities.Text | AiCapabilities.Visual },
                 
                 // OpenAI - Frontier Models (Advanced)
-                new() { Provider = AiProvider.OpenAI, ModelId = "gpt-5.2", DisplayName = "GPT-5.2", IsVisualRecognition = true, IsTextCapable = true },
-                new() { Provider = AiProvider.OpenAI, ModelId = "gpt-5.2-pro", DisplayName = "GPT-5.2 Pro", IsVisualRecognition = true, IsTextCapable = true },
-                new() { Provider = AiProvider.OpenAI, ModelId = "gpt-5", DisplayName = "GPT-5", IsVisualRecognition = true, IsTextCapable = true },
-                new() { Provider = AiProvider.OpenAI, ModelId = "gpt-5-mini", DisplayName = "GPT-5 Mini", IsVisualRecognition = true, IsTextCapable = true },
-                new() { Provider = AiProvider.OpenAI, ModelId = "gpt-5-nano", DisplayName = "GPT-5 Nano", IsVisualRecognition = true, IsTextCapable = true },
+                new() { Provider = AiProvider.OpenAI, ModelId = "gpt-5.2", DisplayName = "GPT-5.2", Capabilities = AiCapabilities.Text | AiCapabilities.Visual },
+                new() { Provider = AiProvider.OpenAI, ModelId = "gpt-5.2-pro", DisplayName = "GPT-5.2 Pro", Capabilities = AiCapabilities.Text | AiCapabilities.Visual },
+                new() { Provider = AiProvider.OpenAI, ModelId = "gpt-5", DisplayName = "GPT-5", Capabilities = AiCapabilities.Text | AiCapabilities.Visual },
+                new() { Provider = AiProvider.OpenAI, ModelId = "gpt-5-mini", DisplayName = "GPT-5 Mini", Capabilities = AiCapabilities.Text | AiCapabilities.Visual },
+                new() { Provider = AiProvider.OpenAI, ModelId = "gpt-5-nano", DisplayName = "GPT-5 Nano", Capabilities = AiCapabilities.Text | AiCapabilities.Visual },
                 
                 // OpenAI - Current/Legacy
-                new() { Provider = AiProvider.OpenAI, ModelId = "gpt-4.1", DisplayName = "GPT-4.1", IsVisualRecognition = true, IsTextCapable = true },
-                new() { Provider = AiProvider.OpenAI, ModelId = "gpt-4.1-mini", DisplayName = "GPT-4.1 Mini", IsVisualRecognition = true, IsTextCapable = true },
-                new() { Provider = AiProvider.OpenAI, ModelId = "gpt-4.1-nano", DisplayName = "GPT-4.1 Nano", IsVisualRecognition = true, IsTextCapable = true },
-                new() { Provider = AiProvider.OpenAI, ModelId = "o4-mini", DisplayName = "o4 Mini", IsVisualRecognition = true, IsTextCapable = true },
+                new() { Provider = AiProvider.OpenAI, ModelId = "gpt-4.1", DisplayName = "GPT-4.1", Capabilities = AiCapabilities.Text | AiCapabilities.Visual },
+                new() { Provider = AiProvider.OpenAI, ModelId = "gpt-4.1-mini", DisplayName = "GPT-4.1 Mini", Capabilities = AiCapabilities.Text | AiCapabilities.Visual },
+                new() { Provider = AiProvider.OpenAI, ModelId = "gpt-4.1-nano", DisplayName = "GPT-4.1 Nano", Capabilities = AiCapabilities.Text | AiCapabilities.Visual },
+                new() { Provider = AiProvider.OpenAI, ModelId = "o4-mini", DisplayName = "o4 Mini", Capabilities = AiCapabilities.Text | AiCapabilities.Visual },
                 
-                new() { Provider = AiProvider.OpenAI, ModelId = "gpt-4o", DisplayName = "GPT-4o", IsVisualRecognition = true, IsTextCapable = true },
-                new() { Provider = AiProvider.OpenAI, ModelId = "gpt-4o-mini", DisplayName = "GPT-4o Mini", IsVisualRecognition = true, IsTextCapable = true },
+                new() { Provider = AiProvider.OpenAI, ModelId = "gpt-4o", DisplayName = "GPT-4o", Capabilities = AiCapabilities.Text | AiCapabilities.Visual },
+                new() { Provider = AiProvider.OpenAI, ModelId = "gpt-4o-mini", DisplayName = "GPT-4o Mini", Capabilities = AiCapabilities.Text | AiCapabilities.Visual },
                 
                 // OpenAI - Open Weight (Simulated)
-                new() { Provider = AiProvider.OpenAI, ModelId = "gpt-oss-120b", DisplayName = "GPT-OSS 120B", IsVisualRecognition = false, IsTextCapable = true },
-                new() { Provider = AiProvider.OpenAI, ModelId = "gpt-oss-20b", DisplayName = "GPT-OSS 20B", IsVisualRecognition = false, IsTextCapable = true },
+                new() { Provider = AiProvider.OpenAI, ModelId = "gpt-oss-120b", DisplayName = "GPT-OSS 120B", Capabilities = AiCapabilities.Text },
+                new() { Provider = AiProvider.OpenAI, ModelId = "gpt-oss-20b", DisplayName = "GPT-OSS 20B", Capabilities = AiCapabilities.Text },
             };
 
             foreach (var model in defaultModels)
@@ -126,14 +126,9 @@ public class FuzzSeedService : IFuzzSeedService
                 {
                     bool changed = false;
                     // Update capabilities
-                    if (existing.IsVisualRecognition != model.IsVisualRecognition)
+                    if (existing.Capabilities != model.Capabilities)
                     {
-                        existing.IsVisualRecognition = model.IsVisualRecognition;
-                        changed = true;
-                    }
-                    if (existing.IsTextCapable != model.IsTextCapable)
-                    {
-                        existing.IsTextCapable = model.IsTextCapable;
+                        existing.Capabilities = model.Capabilities;
                         changed = true;
                     }
                     if (existing.DisplayName != model.DisplayName)
