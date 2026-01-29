@@ -29,7 +29,7 @@ public class ReplicateSoundService : ISoundAgentService
     {
         try
         {
-            var configData = await _configService.GetActiveConfigAsync(userId, AiProvider.Replicate, mode: AiCapabilities.Sound);
+            var configData = await _configService.GetActiveConfigAsync(userId, mode: AiCapabilities.Sound);
             if (configData == null)
                 return new FuzzResponse { Answer = "⚠️ Please configure a Replicate API Key in Settings." };
 

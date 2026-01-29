@@ -27,7 +27,7 @@ public class LocalSoundService : ISoundAgentService
     {
         try
         {
-            var configData = await _configService.GetActiveConfigAsync(userId, AiProvider.Local, mode: AiCapabilities.Sound);
+            var configData = await _configService.GetActiveConfigAsync(userId, mode: AiCapabilities.Sound);
             if (configData == null)
                 return new FuzzResponse { Answer = "⚠️ Please configure an active Local Sound AI (llamusic) in Settings." };
 

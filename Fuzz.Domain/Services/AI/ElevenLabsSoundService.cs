@@ -27,7 +27,7 @@ public class ElevenLabsSoundService : ISoundAgentService
     {
         try
         {
-            var configData = await _configService.GetActiveConfigAsync(userId, AiProvider.ElevenLabs, mode: AiCapabilities.Sound);
+            var configData = await _configService.GetActiveConfigAsync(userId, mode: AiCapabilities.Sound);
             if (configData == null)
                 return new FuzzResponse { Answer = "⚠️ Please configure an active ElevenLabs API Key in Settings." };
 

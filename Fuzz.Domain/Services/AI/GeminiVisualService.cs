@@ -25,7 +25,7 @@ public class GeminiVisualService : IVisualAgentService
     {
         try
         {
-            var configData = await _configService.GetActiveConfigAsync(userId, AiProvider.Gemini, mode: AiCapabilities.Visual);
+            var configData = await _configService.GetActiveConfigAsync(userId, mode: AiCapabilities.Visual);
             if (configData == null || string.IsNullOrWhiteSpace(configData.ApiKey))
                 return new FuzzResponse { Answer = "⚠️ Please configure an active Gemini Visual AI in Settings." };
 

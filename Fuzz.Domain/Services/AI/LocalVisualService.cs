@@ -2,23 +2,25 @@ using Fuzz.Domain.Entities;
 using Fuzz.Domain.Models;
 using Fuzz.Domain.Services.Interfaces;
 using Microsoft.Extensions.Logging;
-using OpenAI;
-using OpenAI.Chat;
-using System.ClientModel;
+using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Fuzz.Domain.Services.AI;
 
 public class LocalVisualService : IVisualAgentService
 {
     private readonly IAiConfigService _configService;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<LocalVisualService> _logger;
-    private readonly List<ChatMessage> _history = new();
 
     public LocalVisualService(
         IAiConfigService configService,
+        IHttpClientFactory httpClientFactory,
         ILogger<LocalVisualService> logger)
     {
         _configService = configService;
+        _httpClientFactory = httpClientFactory;
         _logger = logger;
     }
 
@@ -26,39 +28,43 @@ public class LocalVisualService : IVisualAgentService
     {
         try
         {
-            var configData = await _configService.GetActiveConfigAsync(userId, AiProvider.Local, mode: AiCapabilities.Visual);
+            var configData = await _configService.GetActiveConfigAsync(userId, mode: AiCapabilities.Visual);
             if (configData == null)
-                return new FuzzResponse { Answer = "⚠️ Please configure an active Local Visual AI (LLaVA) in Settings." };
+                return new FuzzResponse { Answer = "⚠️ Please configure an active Visual AI in Settings." };
 
-            var modelId = string.IsNullOrWhiteSpace(configData.ModelId) ? "llava:7b" : configData.ModelId;
-            var apiBase = string.IsNullOrWhiteSpace(configData.ApiBase) ? "http://localhost:11434/v1" : configData.ApiBase;
-            var apiKey = string.IsNullOrWhiteSpace(configData.ApiKey) ? "ollama" : configData.ApiKey.Trim();
+            var modelId = string.IsNullOrWhiteSpace(configData.ModelId) ? "moondream:latest" : configData.ModelId;
+            var apiBase = string.IsNullOrWhiteSpace(configData.ApiBase) ? "http://localhost:11434" : configData.ApiBase.TrimEnd('/');
+            
+            // Remove /v1 suffix if present (we use native Ollama API)
+            if (apiBase.EndsWith("/v1"))
+                apiBase = apiBase[..^3];
 
-            var client = new ChatClient(
-                model: modelId,
-                credential: new ApiKeyCredential(apiKey),
-                options: new OpenAIClientOptions { Endpoint = new Uri(apiBase) });
+            using var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromMinutes(2);
 
-            var imagePart = ChatMessageContentPart.CreateImagePart(
-                new BinaryData(imageData),
-                "image/jpeg");
-            var textPart = ChatMessageContentPart.CreateTextPart(prompt);
+            // Convert image to base64
+            var imageBase64 = Convert.ToBase64String(imageData);
 
-            _history.Clear();
-            _history.Add(new UserChatMessage(new List<ChatMessageContentPart> { imagePart, textPart }));
-
-            var parameters = await _configService.GetParametersAsync(configData.Id);
-            var options = new ChatCompletionOptions
+            // Use native Ollama API for vision models
+            var requestBody = new
             {
-                Temperature = parameters != null ? (float)parameters.Temperature : 0.4f,
-                MaxOutputTokenCount = parameters?.MaxTokens ?? 2048
+                model = modelId,
+                prompt = prompt,
+                images = new[] { imageBase64 },
+                stream = false
             };
 
-            var result = await client.CompleteChatAsync(_history, options);
-            var completion = result.Value;
+            var response = await client.PostAsJsonAsync($"{apiBase}/api/generate", requestBody);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                _logger.LogError("Ollama Vision API error: {StatusCode} - {Error}", response.StatusCode, error);
+                return new FuzzResponse { Answer = $"Ollama Error: {response.StatusCode}" };
+            }
 
-            var answer = completion.Content?.FirstOrDefault()?.Text ?? "No response generated.";
-            return new FuzzResponse { Answer = answer };
+            var result = await response.Content.ReadFromJsonAsync<OllamaGenerateResponse>();
+            return new FuzzResponse { Answer = result?.Response ?? "No response generated." };
         }
         catch (Exception ex)
         {
@@ -67,5 +73,11 @@ public class LocalVisualService : IVisualAgentService
         }
     }
 
-    public void ClearHistory() => _history.Clear();
+    public void ClearHistory() { }
+
+    private class OllamaGenerateResponse
+    {
+        [JsonPropertyName("response")]
+        public string? Response { get; set; }
+    }
 }
