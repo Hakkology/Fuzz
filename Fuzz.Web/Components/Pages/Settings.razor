@@ -37,16 +37,22 @@
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" sm="3">
-                        <MudSelect T="string" @bind-Value="_newConfig.ModelId" Label="Model" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
-                            @foreach (var model in _availableModels)
-                            {
-                                <MudSelectItem Value="@model.ModelId">@model.DisplayName</MudSelectItem>
-                            }
+                        <MudStack Row="true" AlignItems="AlignItems.Center">
+                            <MudSelect T="string" @bind-Value="_newConfig.ModelId" Label="Model" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+                                @foreach (var model in _availableModels)
+                                {
+                                    <MudSelectItem Value="@model.ModelId">@model.DisplayName</MudSelectItem>
+                                }
+                                @if (_newConfig.Provider == AiProvider.Local)
+                                {
+                                    <MudSelectItem Value="@("custom")">-- Özel Model Gir --</MudSelectItem>
+                                }
+                            </MudSelect>
                             @if (_newConfig.Provider == AiProvider.Local)
                             {
-                                <MudSelectItem Value="@("custom")">-- Özel Model Gir --</MudSelectItem>
+                                <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Primary" OnClick="RefreshLocalModels" Title="Ollama Modellerini Tara" />
                             }
-                        </MudSelect>
+                        </MudStack>
                     </MudItem>
                     @if (_newConfig.ModelId == "custom")
                     {
@@ -208,10 +214,41 @@
         }
     }
 
-    private void OnProviderChanged(AiProvider provider)
+    private async Task OnProviderChanged(AiProvider provider)
     {
         _newConfig.Provider = provider;
-        UpdateAvailableModels();
+        if (provider == AiProvider.Local)
+        {
+            await RefreshLocalModels();
+        }
+        else
+        {
+            UpdateAvailableModels();
+        }
+    }
+
+    private async Task RefreshLocalModels()
+    {
+        try
+        {
+            var localModels = await ConfigService.GetLocalModelsAsync(_newConfig.ApiBase);
+            await LoadModels();
+            UpdateAvailableModels();
+            StateHasChanged();
+            
+            if (localModels.Any())
+            {
+                Snackbar.Add($"{localModels.Count} adet local model bulundu ve sisteme eklendi.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Local model bulunamadı. Ollama'nın çalıştığından emin olun.", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning("Local modeller yenilenirken hata: {Message}", ex.Message);
+        }
     }
 
     private async Task LoadConfigs()
