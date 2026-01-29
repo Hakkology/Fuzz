@@ -5,7 +5,8 @@ namespace Fuzz.Domain.Entities;
 public enum AiProvider
 {
     Gemini,
-    OpenAI
+    OpenAI,
+    Local
 }
 
 public class FuzzAiConfig
@@ -23,6 +24,8 @@ public class FuzzAiConfig
     public string ApiKey { get; set; } = string.Empty;
 
     public string ModelId { get; set; } = string.Empty;
+
+    public string ApiBase { get; set; } = string.Empty;
 
     public bool IsActive { get; set; }
 

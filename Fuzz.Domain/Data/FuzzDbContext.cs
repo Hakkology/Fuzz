@@ -13,6 +13,7 @@ public class FuzzDbContext : IdentityDbContext<FuzzUser>
 
     public DbSet<FuzzTodo> Todos { get; set; }
     public DbSet<FuzzAiConfig> AiConfigurations { get; set; }
+    public DbSet<FuzzAiModel> AiModels { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
