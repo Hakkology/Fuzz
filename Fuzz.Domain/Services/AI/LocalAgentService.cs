@@ -57,7 +57,8 @@ TABLE: ""FuzzTodos"" (""Id"", ""Title"", ""IsCompleted"", ""UserId"")
 RULES: 
 1. Use double quotes for table/column names: ""FuzzTodos"".
 2. Always filter by ""UserId"" = '{userId}'.
-3. Perform the requested operation and summarize the results in Turkish."));
+3. Perform the requested operation and summarize the results in Turkish.
+4. IMPORTANT: If a tool returns ""Rows affected: 0"", it means the task was NOT FOUND. Do NOT say it was successful. Instead, try listing tasks to find the correct title."));
             }
 
             _history.Add(new UserChatMessage(input));

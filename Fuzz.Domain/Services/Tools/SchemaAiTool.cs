@@ -150,27 +150,36 @@ public class SchemaAiTool : IAiTool
             await conn.OpenAsync();
 
             using var cmd = new NpgsqlCommand(sql, conn);
-            using var reader = await cmd.ExecuteReaderAsync();
             
-            var results = new List<Dictionary<string, object>>();
-            while (await reader.ReadAsync())
+            // Check if it's a SELECT query to decide execution method
+            // Also exclude WITH (CTE) from NonQuery optimization just in case it returns data
+            bool isSelect = sql.Trim().ToUpper().StartsWith("SELECT") || sql.Trim().ToUpper().StartsWith("WITH");
+
+            if (isSelect)
             {
-                var row = new Dictionary<string, object>();
-                for (int i = 0; i < reader.FieldCount; i++)
+                using var reader = await cmd.ExecuteReaderAsync();
+                
+                var results = new List<Dictionary<string, object>>();
+                while (await reader.ReadAsync())
                 {
-                    row[reader.GetName(i)] = reader.GetValue(i);
+                    var row = new Dictionary<string, object>();
+                    for (int i = 0; i < reader.FieldCount; i++)
+                    {
+                        row[reader.GetName(i)] = reader.GetValue(i);
+                    }
+                    results.Add(row);
                 }
-                results.Add(row);
-            }
 
-            if (results.Count == 0)
+                if (results.Count == 0) return "No records found.";
+
+                return JsonSerializer.Serialize(results);
+            }
+            else
             {
-                return sql.Trim().ToUpper().StartsWith("SELECT") 
-                    ? "No records found." 
-                    : "Command executed successfully.";
+                // For INSERT, UPDATE, DELETE, use ExecuteNonQuery to get rows affected
+                int rowsAffected = await cmd.ExecuteNonQueryAsync();
+                return $"Command executed successfully. Rows affected: {rowsAffected}";
             }
-
-            return JsonSerializer.Serialize(results);
         }
         catch (Exception ex)
         {
