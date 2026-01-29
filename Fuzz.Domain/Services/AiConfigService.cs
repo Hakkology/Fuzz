@@ -164,4 +164,33 @@ public class AiConfigService : IAiConfigService
             await db.SaveChangesAsync();
         }
     }
+
+    public async Task<FuzzAiParameters?> GetParametersAsync(int configId)
+    {
+        using var db = await _dbFactory.CreateDbContextAsync();
+        return await db.FuzzAiParameters.FirstOrDefaultAsync(p => p.FuzzAiConfigId == configId);
+    }
+
+    public async Task SaveParametersAsync(FuzzAiParameters parameters)
+    {
+        using var db = await _dbFactory.CreateDbContextAsync();
+        var existing = await db.FuzzAiParameters.FirstOrDefaultAsync(p => p.FuzzAiConfigId == parameters.FuzzAiConfigId);
+        
+        if (existing == null)
+        {
+            db.FuzzAiParameters.Add(parameters);
+        }
+        else
+        {
+            existing.Temperature = parameters.Temperature;
+            existing.MaxTokens = parameters.MaxTokens;
+            existing.TopP = parameters.TopP;
+            existing.FrequencyPenalty = parameters.FrequencyPenalty;
+            existing.PresencePenalty = parameters.PresencePenalty;
+            existing.UpdatedAt = DateTime.UtcNow;
+            db.FuzzAiParameters.Update(existing);
+        }
+        
+        await db.SaveChangesAsync();
+    }
 }

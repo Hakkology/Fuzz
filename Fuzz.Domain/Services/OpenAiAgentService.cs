@@ -53,12 +53,28 @@ RULES:
 
             _history.Add(new UserChatMessage(input));
 
+            var aiParams = await _configService.GetParametersAsync(configData.Id);
+
             ChatCompletionOptions options = new();
+            if (aiParams != null)
+            {
+                options.Temperature = (float)aiParams.Temperature;
+                options.MaxOutputTokenCount = aiParams.MaxTokens;
+                options.TopP = (float)aiParams.TopP;
+                options.FrequencyPenalty = (float)aiParams.FrequencyPenalty;
+                options.PresencePenalty = (float)aiParams.PresencePenalty;
+            }
+            else
+            {
+                options.Temperature = 0.1f;
+                options.MaxOutputTokenCount = 1024;
+            }
+
             foreach (var tool in _tools)
             {
                 var def = tool.GetDefinition();
-                var parameters = BinaryData.FromString(JsonSerializer.Serialize(def.Parameters));
-                options.Tools.Add(ChatTool.CreateFunctionTool(def.Name, def.Description, parameters));
+                var toolParams = BinaryData.FromString(JsonSerializer.Serialize(def.Parameters));
+                options.Tools.Add(ChatTool.CreateFunctionTool(def.Name, def.Description, toolParams));
             }
 
             string finalAnswer = "";

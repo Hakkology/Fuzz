@@ -16,4 +16,8 @@ public interface IAiConfigService
     // Admin Model Management
     Task AddModelAsync(FuzzAiModel model);
     Task DeleteModelAsync(int id);
+
+    // AI Parameters
+    Task<FuzzAiParameters?> GetParametersAsync(int configId);
+    Task SaveParametersAsync(FuzzAiParameters parameters);
 }
