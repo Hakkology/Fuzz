@@ -182,9 +182,9 @@
         var authState = await AuthProvider.GetAuthenticationStateAsync();
         var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
         
-        var geminiConfig = await ConfigService.GetActiveConfigAsync(userId, AiProvider.Gemini, isVisual: true);
-        var openAiConfig = await ConfigService.GetActiveConfigAsync(userId, AiProvider.OpenAI, isVisual: true);
-        var localConfig = await ConfigService.GetActiveConfigAsync(userId, AiProvider.Local, isVisual: true);
+        var geminiConfig = await ConfigService.GetActiveConfigAsync(userId, AiProvider.Gemini, mode: AiCapabilities.Visual);
+        var openAiConfig = await ConfigService.GetActiveConfigAsync(userId, AiProvider.OpenAI, mode: AiCapabilities.Visual);
+        var localConfig = await ConfigService.GetActiveConfigAsync(userId, AiProvider.Local, mode: AiCapabilities.Visual);
         
         _hasActiveConfig = geminiConfig != null || openAiConfig != null || localConfig != null;
     }

@@ -84,8 +84,8 @@
                             </MudCardHeader>
                             <MudCardContent>
                                 <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@(config.IsVisualRecognition ? Color.Secondary : Color.Primary)">
-                                        @(config.IsVisualRecognition ? "Visual" : "Text")
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@(config.Mode == AiCapabilities.Visual ? Color.Secondary : Color.Primary)">
+                                        @config.Mode
                                     </MudChip>
                                      <MudSwitch T="bool" Value="config.IsActive" ValueChanged="@((bool val) => SetActive(config))" Color="Color.Success" Label="@(config.IsActive ? "Active" : "Inactive")" LabelPosition="LabelPosition.Start" />
                                 </MudStack>
@@ -183,7 +183,7 @@
     private async Task SetActive(FuzzAiConfig config)
     {
         // Deactivate others of the same type
-        foreach(var c in _configs.Where(x => x.IsVisualRecognition == config.IsVisualRecognition)) 
+        foreach(var c in _configs.Where(x => x.Mode == config.Mode)) 
         {
             c.IsActive = false;
         }

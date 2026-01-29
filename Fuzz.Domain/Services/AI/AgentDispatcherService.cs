@@ -32,7 +32,7 @@ public class AgentDispatcherService : IFuzzAgentService
     {
         using var db = await _dbFactory.CreateDbContextAsync();
         var active = await db.AiConfigurations
-            .FirstOrDefaultAsync(c => c.UserId == userId && c.IsActive);
+            .FirstOrDefaultAsync(c => c.UserId == userId && c.IsActive && c.Mode == AiCapabilities.Text);
         return active?.Provider;
     }
 

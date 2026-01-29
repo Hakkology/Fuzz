@@ -111,16 +111,16 @@
     {
         if (_newConfig.Provider == AiProvider.Local)
         {
-            // Text Tab: Only text capable models (hides pure visual models like moondream)
+            // Text Tab: Only text capable models
             _availableModels = AllModels
-                .Where(m => m.Provider == AiProvider.Local && m.IsTextCapable)
+                .Where(m => m.Provider == AiProvider.Local && m.Capabilities.HasFlag(AiCapabilities.Text))
                 .ToList();
         }
         else
         {
-            // Text Tab: Only text capable (includes hybrids like GPT-4o)
+            // Text Tab: Only text capable
             _availableModels = AllModels
-                .Where(m => m.Provider == _newConfig.Provider && m.IsTextCapable)
+                .Where(m => m.Provider == _newConfig.Provider && m.Capabilities.HasFlag(AiCapabilities.Text))
                 .ToList();
         }
 
@@ -135,11 +135,7 @@
         try
         {
             var localModels = await ConfigService.GetLocalModelsAsync(_newConfig.ApiBase);
-            await OnModelsUpdated.InvokeAsync(); // Notify parent to reload AllModels
-            
-            // Re-filtering will happen on ParametersSet if parent pushes new list, 
-            // but we can also trigger it manually if parent update is slow?
-            // Usually parent update will trigger OnParametersSet.
+            await OnModelsUpdated.InvokeAsync(); 
             
             if (localModels.Any())
                 Snackbar.Add($"Local models synchronized: {localModels.Count} found.", Severity.Success);
@@ -161,7 +157,7 @@
         {
             _newConfig.UserId = UserId;
             _newConfig.UpdatedAt = DateTime.UtcNow;
-            _newConfig.IsVisualRecognition = false; // TEXT Component
+            _newConfig.Mode = AiCapabilities.Text; // TEXT Component
 
             await ConfigService.AddConfigAsync(_newConfig);
             Snackbar.Add("Agent configured successfully.", Severity.Success);
