@@ -1,3 +1,4 @@
+using Fuzz.Domain.Services.Interfaces;
 using Google.GenAI.Types;
 
 namespace Fuzz.Domain.Ai.Tools;
