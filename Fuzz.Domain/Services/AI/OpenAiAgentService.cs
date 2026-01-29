@@ -57,13 +57,14 @@ public class OpenAiAgentService : IFuzzAgentService
 
     public void ClearHistory() => _history.Clear();
 
-    #region Private Methods
+
 
     private void InitializeHistory(string userId, bool useTools)
     {
-        // Check if history is empty or if the system prompt has changed intent (simple check)
-        bool currentIsTools = _history.Count > 0 && _history[0] is SystemChatMessage scm && scm.Content[0].Text.Contains("You are Fuzz");
 
+
+        bool currentIsTools = _history.Count > 0 && _history[0] is SystemChatMessage scm && scm.Content[0].Text.Contains("You are Fuzz");
+        
         if (_history.Count == 0 || (currentIsTools != useTools))
         {
             _history.Clear();
@@ -143,5 +144,5 @@ public class OpenAiAgentService : IFuzzAgentService
             _history.RemoveRange(1, 2);
     }
 
-    #endregion
+
 }

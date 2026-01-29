@@ -11,7 +11,7 @@
 <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
     <MudPaper Elevation="0" Class="pa-4 visual-container">
         
-        @* Header *@
+
         <div class="visual-header">
             <MudAvatar Color="Color.Secondary" Size="Size.Medium">
                 <MudIcon Icon="@Icons.Material.Filled.ImageSearch" />
@@ -67,7 +67,6 @@
             </ActivatorContent>
         </MudFileUpload>
 
-        @* Response Area *@
         @if (!string.IsNullOrEmpty(_response))
         {
             <MudPaper Elevation="0" Class="response-area fade-in">
@@ -82,7 +81,6 @@
             </MudPaper>
         }
 
-        @* Input Area *@
         <div class="visual-input-area">
             <MudTextField @bind-Value="_prompt" 
                           Placeholder="Ask something about the image..." 

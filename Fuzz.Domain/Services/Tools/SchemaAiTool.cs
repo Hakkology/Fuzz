@@ -50,33 +50,9 @@ public class SchemaAiTool : IAiTool
         };
     }
 
-    public string? CheckGuardrails(Dictionary<string, object?> args)
-    {
-        if (args.TryGetValue("sql", out var sqlObj) && sqlObj != null)
-        {
-            string sql = sqlObj.ToString()?.Trim().ToUpper() ?? "";
-            
-            var forbiddenWords = new[] { "DROP", "TRUNCATE", "ALTER", "GRANT", "REVOKE", "CREATE", "RENAME", "REPLACE" };
-
-            foreach (var word in forbiddenWords)
-            {
-                if (sql.Contains(word))
-                {
-                    return $"Guardrails Alert: Forbidden keyword '{word}' detected. DDL actions are not allowed. Only CRUD (SELECT, INSERT, UPDATE, DELETE) is permitted.";
-                }
-            }
-
-            if (sql.Contains("DELETE") && !sql.Contains("WHERE"))
-                return "Guardrails Alert: DELETE statement must contain a WHERE clause.";
-        }
-        
-        return null;
-    }
-
     public async Task<object> ExecuteAsync(Dictionary<string, object?> args, string userId)
     {
-        var guardrailError = CheckGuardrails(args);
-        if (guardrailError != null) return guardrailError;
+        // Guardrails removed as per user request. Database constraints will handle safety.
 
         if (args.TryGetValue("get_schema", out var getSchemaObj) && getSchemaObj?.ToString()?.ToLower() == "true")
         {

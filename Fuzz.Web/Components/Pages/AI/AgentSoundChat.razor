@@ -13,7 +13,7 @@
 <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
     <MudPaper Elevation="0" Class="sound-container">
         
-        @* Header with gradient accent *@
+
         <div class="sound-header">
             <div class="header-icon-wrapper">
                 <MudIcon Icon="@Icons.Material.Filled.MusicNote" Size="Size.Large" />
@@ -39,7 +39,6 @@
             </MudChip>
         </div>
 
-        @* Result Area *@
         @if (!string.IsNullOrEmpty(_responseContent))
         {
             <div class="result-area @(_isPlaying ? "is-playing" : "")">
@@ -57,12 +56,10 @@
                 }
                 else
                 {
-                    @* Sheet Music Display *@
                     <div class="sheet-music-wrapper">
                         <div id="sheet-music" class="sheet-music-area"></div>
                     </div>
 
-                    @* Audio Controls *@
                     <div class="audio-controls">
                         <div class="controls-left">
                             <MudButton Variant="Variant.Filled" 
@@ -109,7 +106,6 @@
                         </div>
                     </div>
 
-                    @* ABC Notation Panel *@
                     <MudExpansionPanels Elevation="0" Class="notation-panel">
                         <MudExpansionPanel Text="View ABC Notation" MaxHeight="200">
                             <pre class="abc-code">@_responseContent</pre>
@@ -120,7 +116,6 @@
         }
         else if (!_isProcessing)
         {
-            @* Empty State *@
             <div class="empty-state">
                 <div class="empty-icon">
                     <MudIcon Icon="@Icons.Material.Filled.QueueMusic" Size="Size.Large" />
@@ -133,7 +128,6 @@
             </div>
         }
 
-        @* Loading State *@
         @if (_isProcessing)
         {
             <div class="loading-state">
@@ -145,7 +139,6 @@
             </div>
         }
 
-        @* Instrument Selector *@
         @if (_activeProvider == AiProvider.Local)
         {
             <div class="instrument-selector">
@@ -166,7 +159,6 @@
             </div>
         }
 
-        @* Input Area *@
         <div class="sound-input-area @(_isProcessing ? "is-disabled" : "")">
             <MudTextField @bind-Value="_prompt" 
                           Placeholder="@(_activeProvider == AiProvider.ElevenLabs ? "Type text to speak..." : "Describe your melody... (Ctrl+Enter to send)")" 
@@ -490,7 +482,7 @@
         new("Trumpet", "🎺", 56)
     };
     
-    private int _selectedInstrument = 0; // Piano default
+    private int _selectedInstrument = 0;
     private string _prompt = "";
     private string _responseContent = "";
     private bool _isProcessing = false;
