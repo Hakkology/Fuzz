@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Fuzz.Domain.Data;
 using Fuzz.Domain.Entities;
+using Fuzz.Domain.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -47,7 +48,7 @@ public class AgentDispatcherService : IFuzzAgentService
             AiProvider.Gemini => await _geminiService.ProcessCommandAsync(input, userId),
             AiProvider.OpenAI => await _openaiService.ProcessCommandAsync(input, userId),
             AiProvider.Local => await _localService.ProcessCommandAsync(input, userId),
-            _ => new FuzzResponse { Answer = "⚠️ Lütfen 'AI Ayarları' sayfasından aktif bir sağlayıcı seçin." }
+            _ => new FuzzResponse { Answer = "Please select an active AI provider from the 'AI Settings' page." }
         };
     }
 

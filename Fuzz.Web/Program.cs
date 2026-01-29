@@ -13,7 +13,6 @@ using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// MudBlazor
 builder.Services.AddMudServices();
 builder.Services.AddHttpClient();
 
@@ -34,13 +33,9 @@ builder.Services.AddAuthentication(options =>
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
-// Configure FuzzDbContext with Factory (Recommended for Blazor)
 builder.Services.AddDbContextFactory<FuzzDbContext>(options =>
     options.UseNpgsql(connectionString));
-
-// Also register the Scoped DbContext for services that don't use the factory (like Identity and SeedService)
 builder.Services.AddScoped(p => p.GetRequiredService<IDbContextFactory<FuzzDbContext>>().CreateDbContext());
-
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddIdentityCore<FuzzUser>(options =>
@@ -60,16 +55,14 @@ builder.Services.AddScoped<IAiTool, TimeAiTool>();
 
 // AI Services
 builder.Services.AddScoped<IAiConfigService, AiConfigService>();
+builder.Services.AddScoped<IFuzzAgentService, AgentDispatcherService>();
 builder.Services.AddKeyedScoped<IFuzzAgentService, GeminiAgentService>(AiProvider.Gemini);
 builder.Services.AddKeyedScoped<IFuzzAgentService, OpenAiAgentService>(AiProvider.OpenAI);
 builder.Services.AddKeyedScoped<IFuzzAgentService, LocalAgentService>(AiProvider.Local);
-builder.Services.AddScoped<IFuzzAgentService, AgentDispatcherService>();
 
 builder.Services.AddScoped<IFuzzSeedService, FuzzSeedService>();
 
 var app = builder.Build();
-
-// Automatic Database Migration & Seeding
 await InitializeDatabaseAsync(app);
 
 // Configure the HTTP request pipeline.

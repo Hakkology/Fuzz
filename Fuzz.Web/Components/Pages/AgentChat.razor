@@ -14,7 +14,7 @@
             </MudAvatar>
             <div class="chat-header-text">
                 <MudText Typo="Typo.h6">Fuzz Agent</MudText>
-                <MudText Typo="Typo.caption" Style="color: #B0B0B0;">Veritabanı asistanınız</MudText>
+                <MudText Typo="Typo.caption" Style="color: #B0B0B0;">Your database assistant</MudText>
             </div>
             @if (!string.IsNullOrEmpty(_globalLastSql))
             {
@@ -22,18 +22,16 @@
             }
         </div>
         
-        @* SQL Monitor - Collapsed by default *@
         @if (!string.IsNullOrEmpty(_globalLastSql))
         {
             <MudPaper Elevation="0" Class="pa-3 mb-4 sql-monitor">
                 <MudText Typo="Typo.caption" Class="mb-1" Style="color: #ce9178; font-weight: bold;">
-                    Son SQL Sorgusu
+                    Last SQL Query
                 </MudText>
                 <code class="sql-code">@_globalLastSql</code>
             </MudPaper>
         }
 
-        @* Chat Messages - Simplified *@
         <div class="chat-messages" @ref="_chatContainer">
             @foreach (var msg in _messages)
             {
@@ -65,16 +63,15 @@
                     </MudAvatar>
                     <div class="chat-bubble agent-bubble typing">
                         <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Small" />
-                        <span class="ml-2">Düşünüyor...</span>
+                        <span class="ml-2">Thinking...</span>
                     </div>
                 </div>
             }
         </div>
 
-        @* Input Area *@
         <div class="chat-input-area">
             <MudTextField @bind-Value="_currentInput" 
-                          Placeholder="Mesajınızı yazın..." 
+                          Placeholder="Type your message..." 
                           Variant="Variant.Outlined" 
                           Margin="Margin.Dense" 
                           OnKeyDown="@HandleKeyDown"
@@ -226,7 +223,6 @@
 
     private string FormatMessage(string content)
     {
-        // Convert markdown-like formatting to HTML
         content = System.Web.HttpUtility.HtmlEncode(content);
         content = System.Text.RegularExpressions.Regex.Replace(content, @"\*\*(.+?)\*\*", "<strong>$1</strong>");
         content = content.Replace("\n", "<br/>");
@@ -265,7 +261,7 @@
         }
         catch (Exception ex)
         {
-            _messages.Add(new ChatMessage { Content = $"Hata: {ex.Message}", IsUser = false, Timestamp = DateTime.Now });
+            _messages.Add(new ChatMessage { Content = $"Error: {ex.Message}", IsUser = false, Timestamp = DateTime.Now });
         }
         finally
         {

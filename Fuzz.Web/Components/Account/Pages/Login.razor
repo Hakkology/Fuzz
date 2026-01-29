@@ -12,7 +12,7 @@
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
 
-<PageTitle>Giriş Yap - Fuzz</PageTitle>
+<PageTitle>Login - Fuzz</PageTitle>
 
 <div class="login-container">
     <MudStaticPaper Class="login-card pa-8" Elevation="0">
@@ -21,8 +21,8 @@
                 <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Large" />
             </MudAvatar>
             
-            <MudText Typo="Typo.h4" Class="login-title">Giriş Yap</MudText>
-            <MudText Typo="Typo.body2" Class="login-subtitle">Hesabınıza giriş yapın</MudText>
+            <MudText Typo="Typo.h4" Class="login-title">Login</MudText>
+            <MudText Typo="Typo.body2" Class="login-subtitle">Login to your account</MudText>
         </MudStack>
 
         @if (!string.IsNullOrEmpty(errorMessage))
@@ -35,53 +35,50 @@
             
             <MudStack Spacing="3" Class="mt-6">
                 <MudStaticTextField @bind-Value="Input.Email" 
-                              Label="E-posta" 
-                              Variant="Variant.Outlined"
-                              InputType="InputType.Email"
-                              Adornment="Adornment.Start"
-                              AdornmentIcon="@Icons.Material.Filled.Email"
-                              autocomplete="username"
-                              Required="true"
-                              RequiredError="E-posta gerekli" />
+                               Label="Email" 
+                               Variant="Variant.Outlined"
+                               InputType="InputType.Email"
+                               Adornment="Adornment.Start"
+                               AdornmentIcon="@Icons.Material.Filled.Email"
+                               autocomplete="username"
+                               Required="true"
+                               RequiredError="Email is required" />
                 
                 <MudStaticTextField @bind-Value="Input.Password" 
-                              Label="Şifre" 
-                              Variant="Variant.Outlined"
-                              InputType="InputType.Password"
-                              Adornment="Adornment.Start"
-                              AdornmentIcon="@Icons.Material.Filled.Password"
-                              autocomplete="current-password"
-                              Required="true"
-                              RequiredError="Şifre gerekli" />
+                               Label="Password" 
+                               Variant="Variant.Outlined"
+                               InputType="InputType.Password"
+                               Adornment="Adornment.Start"
+                               AdornmentIcon="@Icons.Material.Filled.Password"
+                               autocomplete="current-password"
+                               Required="true"
+                               RequiredError="Password is required" />
                 
                 <MudStaticSwitch @bind-Value="Input.RememberMe" 
-                             Label="Beni hatırla" 
+                             Label="Remember me" 
                              Color="Color.Primary" />
                 
-                <MudStaticButton type="submit"
-                           Variant="Variant.Filled" 
-                           Color="Color.Primary" 
-                           Size="Size.Large"
-                           FullWidth="true"
-                           Class="mt-2">
-                    <MudIcon Icon="@Icons.Material.Filled.Login" Class="mr-2" />
-                    Giriş Yap
-                </MudStaticButton>
+                <button type="submit" class="mud-button-root mud-button mud-button-filled mud-button-filled-primary mud-button-size-large mud-width-full mt-2">
+                    <span class="mud-button-label">
+                        <MudIcon Icon="@Icons.Material.Filled.Login" Class="mr-2" />
+                        Login
+                    </span>
+                </button>
             </MudStack>
         </EditForm>
 
         <MudDivider Class="my-4" />
 
         <MudStack Spacing="2" AlignItems="AlignItems.Center">
-            <MudLink Href="Account/ForgotPassword" Color="Color.Primary" Typo="Typo.body2">
-                Şifrenizi mi unuttunuz?
+            <MudLink Href="/Account/ForgotPassword" Color="Color.Primary" Typo="Typo.body2">
+                Forgot your password?
             </MudLink>
             
             <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
-                <MudText Typo="Typo.body2" Style="color: #B0B0B0;">Hesabınız yok mu?</MudText>
+                <MudText Typo="Typo.body2" Style="color: #B0B0B0;">Don't have an account?</MudText>
                 <MudLink Href="@(NavigationManager.GetUriWithQueryParameters("Account/Register", new Dictionary<string, object?> { ["ReturnUrl"] = ReturnUrl }))" 
                          Color="Color.Primary" Typo="Typo.body2">
-                    Kayıt Ol
+                    Register
                 </MudLink>
             </MudStack>
         </MudStack>
@@ -173,21 +170,21 @@
         }
         else
         {
-            errorMessage = "Hata: Geçersiz giriş bilgileri.";
+            errorMessage = "Error: Invalid login credentials.";
         }
     }
 
     private sealed class InputModel
     {
-        [Required(ErrorMessage = "E-posta gerekli")]
-        [EmailAddress(ErrorMessage = "Geçerli bir e-posta adresi girin")]
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Enter a valid email address")]
         public string Email { get; set; } = "";
 
-        [Required(ErrorMessage = "Şifre gerekli")]
+        [Required(ErrorMessage = "Password is required")]
         [DataType(DataType.Password)]
         public string Password { get; set; } = "";
 
-        [Display(Name = "Beni hatırla")]
+        [Display(Name = "Remember me")]
         public bool RememberMe { get; set; }
     }
 }

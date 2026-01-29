@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using Fuzz.Domain.Data;
 using Fuzz.Domain.Entities;
 using Fuzz.Domain.Models;
-using System.Net.Http;
 using System.Net.Http.Json;
 
 namespace Fuzz.Domain.Services;
@@ -78,7 +77,6 @@ public class AiConfigService : IAiConfigService
                 {
                     var cleanId = model.Name.ToLower().Trim();
                     
-                    // Respondaki mükerrerleri veya zaten DB'de olanları atla
                     if (processedModels.Contains(cleanId) || existingModelIds.Contains(cleanId))
                         continue;
 
@@ -98,7 +96,7 @@ public class AiConfigService : IAiConfigService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning("Ollama modelleri çekilemedi veya kaydedilemedi: {Message}", ex.Message);
+            _logger.LogWarning("Failed to fetch or save Ollama models: {Message}", ex.Message);
         }
         return localModels;
     }
@@ -142,7 +140,7 @@ public class AiConfigService : IAiConfigService
             {
                 Provider = provider,
                 ModelId = modelId,
-                DisplayName = $"{modelId} (Özel)",
+                DisplayName = $"{modelId} (Custom)",
                 IsCustom = true
             });
             await db.SaveChangesAsync();

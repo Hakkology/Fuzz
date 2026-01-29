@@ -35,39 +35,37 @@ public class FuzzSeedService : IFuzzSeedService
     {
         try
         {
-            _logger.LogInformation("🔄 Veritabanı bağlantısı kontrol ediliyor...");
+            _logger.LogInformation("🔄 Checking database connection...");
             
-            // PostgreSQL erişilebilir mi kontrol et
             var canConnect = await _dbContext.Database.CanConnectAsync();
             
             if (canConnect)
             {
-                _logger.LogInformation("✅ PostgreSQL bağlantısı başarılı!");
+                _logger.LogInformation("✅ PostgreSQL connection successful!");
                 
-                // Bekleyen migration var mı?
                 var pendingMigrations = await _dbContext.Database.GetPendingMigrationsAsync();
                 
                 if (pendingMigrations.Any())
                 {
-                    _logger.LogInformation("📦 {Count} bekleyen migration bulundu. Uygulanıyor...", pendingMigrations.Count());
+                    _logger.LogInformation("📦 {Count} pending migrations found. Applying...", pendingMigrations.Count());
                     
                     await _dbContext.Database.MigrateAsync();
                     
-                    _logger.LogInformation("✅ Tüm migration'lar başarıyla uygulandı!");
+                    _logger.LogInformation("✅ All migrations applied successfully!");
                 }
                 else
                 {
-                    _logger.LogInformation("✅ Veritabanı güncel, migration gerekmiyor.");
+                    _logger.LogInformation("✅ Database is up to date.");
                 }
             }
             else
             {
-                _logger.LogWarning("⚠️ PostgreSQL bağlantısı kurulamadı. Veritabanı işlemleri atlanıyor.");
+                _logger.LogWarning("⚠️ Could not connect to PostgreSQL. Skipping database operations.");
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "❌ Veritabanı migration hatası: {Message}", ex.Message);
+            _logger.LogError(ex, "❌ Database migration error: {Message}", ex.Message);
         }
     }
 
@@ -78,60 +76,57 @@ public class FuzzSeedService : IFuzzSeedService
             var canConnect = await _dbContext.Database.CanConnectAsync();
             if (!canConnect)
             {
-                _logger.LogWarning("⚠️ Seed işlemi atlanıyor - veritabanı bağlantısı yok.");
+                _logger.LogWarning("⚠️ Skipping seed - no database connection.");
                 return;
             }
 
-            // 1. Rolleri ve Admin'i oluştur
+            // 1. Create Roles and Admin
             await SeedRolesAndAdminAsync();
 
-            // 2. Varsayılan modelleri ekle
+            // 2. Add Default Models
             if (!await _dbContext.FuzzAiModels.AnyAsync(m => !m.IsCustom))
             {
-                _logger.LogInformation("🌱 Varsayılan AI modelleri ekleniyor...");
+                _logger.LogInformation("🌱 Seeding default AI models...");
                 
                 var defaultModels = new List<Entities.FuzzAiModel>();
 
-                // Gemini Modelleri
-                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.Gemini, ModelId = "gemini-3-flash", DisplayName = "Gemini 3 Flash" });
-                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.Gemini, ModelId = "gemini-2.1-flash", DisplayName = "Gemini 2.1 Flash" });
-                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.Gemini, ModelId = "gemini-robotics-er-1.5-preview", DisplayName = "Gemini Robotics ER 1.5 Preview" });
-                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.Gemini, ModelId = "gemma-3-27b", DisplayName = "Gemma 3 27B" });
+                // Gemini Models
+                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.Gemini, ModelId = "gemini-1.5-flash", DisplayName = "Gemini 1.5 Flash" });
+                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.Gemini, ModelId = "gemini-1.5-pro", DisplayName = "Gemini 1.5 Pro" });
+                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.Gemini, ModelId = "gemma-2-9b", DisplayName = "Gemma 2 9B" });
 
-                // OpenAI Modelleri
+                // OpenAI Models
                 defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.OpenAI, ModelId = "gpt-4o", DisplayName = "GPT-4o" });
                 defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.OpenAI, ModelId = "gpt-4o-mini", DisplayName = "GPT-4o-mini" });
                 defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.OpenAI, ModelId = "o1-preview", DisplayName = "o1 Preview" });
 
                 _dbContext.FuzzAiModels.AddRange(defaultModels);
                 await _dbContext.SaveChangesAsync();
-                _logger.LogInformation("✅ {Count} varsayılan model başarıyla eklendi.", defaultModels.Count);
+                _logger.LogInformation("✅ {Count} default models added successfully.", defaultModels.Count);
             }
             
-            _logger.LogInformation("🌱 Seed işlemi tamamlandı.");
+            _logger.LogInformation("🌱 Seeding completed.");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "❌ Seed hatası: {Message}", ex.Message);
+            _logger.LogError(ex, "❌ Seed error: {Message}", ex.Message);
         }
     }
 
     private async Task SeedRolesAndAdminAsync()
     {
-        // Rolü oluştur
         if (!await _roleManager.RoleExistsAsync("Admin"))
         {
-            _logger.LogInformation("🔑 'Admin' rolü oluşturuluyor...");
+            _logger.LogInformation("🔑 Creating 'Admin' role...");
             await _roleManager.CreateAsync(new IdentityRole("Admin"));
         }
 
-        // Admin kullanıcısını oluştur
         var adminEmail = "admin@fuzz.com";
         var adminUser = await _userManager.FindByEmailAsync(adminEmail);
         
         if (adminUser == null)
         {
-            _logger.LogInformation("👤 Varsayılan admin kullanıcısı oluşturuluyor...");
+            _logger.LogInformation("👤 Creating default admin user...");
             adminUser = new FuzzUser 
             { 
                 UserName = adminEmail, 
@@ -143,7 +138,7 @@ public class FuzzSeedService : IFuzzSeedService
             if (result.Succeeded)
             {
                 await _userManager.AddToRoleAsync(adminUser, "Admin");
-                _logger.LogInformation("✅ Admin kullanıcısı oluşturuldu ve 'Admin' rolüne atandı.");
+                _logger.LogInformation("✅ Admin user created and assigned to 'Admin' role.");
             }
         }
     }

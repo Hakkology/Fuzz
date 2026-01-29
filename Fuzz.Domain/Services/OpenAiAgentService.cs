@@ -3,6 +3,7 @@ using Fuzz.Domain.Ai;
 using Fuzz.Domain.Entities;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
+using Fuzz.Domain.Models;
 
 namespace Fuzz.Domain.Services;
 
@@ -32,7 +33,7 @@ public class OpenAiAgentService : IFuzzAgentService
             var configData = await _configService.GetActiveConfigAsync(userId, AiProvider.OpenAI);
             if (configData == null || string.IsNullOrWhiteSpace(configData.ApiKey))
             {
-                return new FuzzResponse { Answer = "⚠️ Lütfen 'AI Ayarları' sayfasından aktif bir OpenAI yapılandırması seçin." };
+                return new FuzzResponse { Answer = "⚠️ Please configure an active OpenAI API key in the 'AI Settings' page." };
             }
 
             string modelId = string.IsNullOrWhiteSpace(configData.ModelId) ? "gpt-4o" : configData.ModelId;
@@ -41,13 +42,13 @@ public class OpenAiAgentService : IFuzzAgentService
             if (_history.Count == 0 || (_history[0] is SystemChatMessage scm && !scm.Content[0].Text.Contains(userId)))
             {
                 _history.Clear();
-                _history.Add(new SystemChatMessage($@"Sen Fuzz Agent'sın. PostgreSQL uzmanısın.
-KULLANICI_ID: '{userId}'
-TABLO: ""FuzzTodos"" (""Id"", ""Title"", ""IsCompleted"", ""UserId"")
-KURALLAR: 
-1. Tablo/kolon adları çift tırnakta: ""FuzzTodos"".
-2. Filtre: ""UserId"" = '{userId}'
-3. Araçları kullanarak işlemi yap ve sonucu Türkçe özetle."));
+                _history.Add(new SystemChatMessage($@"You are Fuzz Agent, a PostgreSQL expert.
+USER_ID: '{userId}'
+TABLE: ""FuzzTodos"" (""Id"", ""Title"", ""IsCompleted"", ""UserId"")
+RULES: 
+1. Use double quotes for table/column names: ""FuzzTodos"".
+2. Always filter by ""UserId"" = '{userId}'.
+3. Perform the requested operation and summarize the results in Turkish."));
             }
 
             _history.Add(new UserChatMessage(input));
@@ -98,8 +99,8 @@ KURALLAR:
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "OpenAI Agent hatası");
-            return new FuzzResponse { Answer = $"Bir teknik hata oluştu: {ex.Message}" };
+            _logger.LogError(ex, "OpenAI Agent Error");
+            return new FuzzResponse { Answer = $"A technical error occurred: {ex.Message}" };
         }
     }
 

@@ -3,43 +3,43 @@
 
 <MudNavMenu Color="Color.Primary" Bordered="false" Dense="false" Class="mt-2">
     <MudText Typo="Typo.overline" Class="px-4 py-2" Style="color: rgba(255, 107, 53, 0.7);">
-        ANA MENÜ
+        MAIN MENU
     </MudText>
     
     <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">
-        Ana Sayfa
+        Home
     </MudNavLink>
     
-    <MudNavLink Href="agent-chat" Icon="@Icons.Material.Filled.SmartToy">
+    <MudNavLink Href="/agent-chat" Icon="@Icons.Material.Filled.SmartToy">
         Agent Chat
     </MudNavLink>
 
     <MudDivider Class="my-3" />
     
     <MudText Typo="Typo.overline" Class="px-4 py-2" Style="color: rgba(255, 107, 53, 0.7);">
-        HESAP
+        ACCOUNT
     </MudText>
     
     <AuthorizeView>
         <Authorized>
-            <MudNavLink Href="Settings" Icon="@Icons.Material.Filled.Settings">
-                AI Ayarları
+            <MudNavLink Href="/Settings" Icon="@Icons.Material.Filled.Settings">
+                AI Settings
             </MudNavLink>
             <AuthorizeView Roles="Admin" Context="AdminContext">
-                <MudNavLink Href="Admin/Models" Icon="@Icons.Material.Filled.AdminPanelSettings">
-                    Model Yönetimi
+                <MudNavLink Href="/Admin/Models" Icon="@Icons.Material.Filled.AdminPanelSettings">
+                    Model Management
                 </MudNavLink>
             </AuthorizeView>
-            <MudNavLink Href="Account/Manage" Icon="@Icons.Material.Filled.ManageAccounts">
-                Profil Ayarları
+            <MudNavLink Href="/Account/Manage" Icon="@Icons.Material.Filled.ManageAccounts">
+                Profile Settings
             </MudNavLink>
         </Authorized>
         <NotAuthorized>
-            <MudNavLink Href="Account/Register" Icon="@Icons.Material.Filled.PersonAdd">
-                Kayıt Ol
+            <MudNavLink Href="/Account/Register" Icon="@Icons.Material.Filled.PersonAdd">
+                Register
             </MudNavLink>
-            <MudNavLink Href="Account/Login" Icon="@Icons.Material.Filled.Login">
-                Giriş Yap
+            <MudNavLink Href="/Account/Login" Icon="@Icons.Material.Filled.Login">
+                Login
             </MudNavLink>
         </NotAuthorized>
     </AuthorizeView>
