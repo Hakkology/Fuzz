@@ -53,13 +53,20 @@ public class ReplicateSoundService : ISoundAgentService
 
             var requestBody = new
             {
-                version = "671ac645ce5e552cc63a54a2bbff63fcf798043ac68f86b6f926f4720ec48be3", // musicgen-stereo-melody-large
+                version = "671ac645ce5e552cc63a54a2bbff63fcf798043055d2dac5fc9e36a837eedcfb", // musicgen stereo-large
                 input = new
                 {
                     prompt = prompt,
                     duration = duration,
-                    model_version = "stereo-melody-large",
-                    output_format = "wav"
+                    top_k = 250,
+                    top_p = 0,
+                    temperature = 1,
+                    model_version = "stereo-large",
+                    output_format = "mp3",
+                    continuation = false,
+                    multi_band_diffusion = false,
+                    normalization_strategy = "peak",
+                    classifier_free_guidance = 3
                 }
             };
 
@@ -116,7 +123,7 @@ public class ReplicateSoundService : ISoundAgentService
             var audioBytes = await audioResponse.Content.ReadAsByteArrayAsync();
             var base64Audio = Convert.ToBase64String(audioBytes);
 
-            return new FuzzResponse { Answer = $"data:audio/wav;base64,{base64Audio}" };
+            return new FuzzResponse { Answer = $"data:audio/mpeg;base64,{base64Audio}" };
         }
         catch (Exception ex)
         {
