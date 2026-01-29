@@ -86,7 +86,7 @@ public class FuzzSeedService : IFuzzSeedService
             await SeedRolesAndAdminAsync();
 
             // 2. Varsayılan modelleri ekle
-            if (!await _dbContext.AiModels.AnyAsync(m => !m.IsCustom))
+            if (!await _dbContext.FuzzAiModels.AnyAsync(m => !m.IsCustom))
             {
                 _logger.LogInformation("🌱 Varsayılan AI modelleri ekleniyor...");
                 
@@ -103,7 +103,7 @@ public class FuzzSeedService : IFuzzSeedService
                 defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.OpenAI, ModelId = "gpt-4o-mini", DisplayName = "GPT-4o-mini" });
                 defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.OpenAI, ModelId = "o1-preview", DisplayName = "o1 Preview" });
 
-                _dbContext.AiModels.AddRange(defaultModels);
+                _dbContext.FuzzAiModels.AddRange(defaultModels);
                 await _dbContext.SaveChangesAsync();
                 _logger.LogInformation("✅ {Count} varsayılan model başarıyla eklendi.", defaultModels.Count);
             }

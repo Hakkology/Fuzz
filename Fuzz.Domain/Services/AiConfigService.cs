@@ -44,7 +44,7 @@ public class AiConfigService : IAiConfigService
     public async Task<List<FuzzAiModel>> GetModelsAsync(AiProvider? provider = null)
     {
         using var db = await _dbFactory.CreateDbContextAsync();
-        var query = db.AiModels.AsQueryable();
+        var query = db.FuzzAiModels.AsQueryable();
         if (provider.HasValue)
         {
             query = query.Where(m => m.Provider == provider.Value);
@@ -67,13 +67,21 @@ public class AiConfigService : IAiConfigService
             if (response?.Models != null)
             {
                 using var db = await _dbFactory.CreateDbContextAsync();
-                var existingModels = await db.AiModels
+                var existingModelIds = await db.FuzzAiModels
                     .Where(m => m.Provider == AiProvider.Local)
-                    .Select(m => m.ModelId)
+                    .Select(m => m.ModelId.ToLower().Trim())
                     .ToListAsync();
+
+                var processedModels = new HashSet<string>();
 
                 foreach (var model in response.Models)
                 {
+                    var cleanId = model.Name.ToLower().Trim();
+                    
+                    // Respondaki mükerrerleri veya zaten DB'de olanları atla
+                    if (processedModels.Contains(cleanId) || existingModelIds.Contains(cleanId))
+                        continue;
+
                     var modelEntity = new FuzzAiModel 
                     { 
                         Provider = AiProvider.Local, 
@@ -82,12 +90,8 @@ public class AiConfigService : IAiConfigService
                         IsCustom = true
                     };
                     localModels.Add(modelEntity);
-
-                    // Veritabanında yoksa ekle
-                    if (!existingModels.Contains(model.Name))
-                    {
-                        db.AiModels.Add(modelEntity);
-                    }
+                    db.FuzzAiModels.Add(modelEntity);
+                    processedModels.Add(cleanId);
                 }
                 await db.SaveChangesAsync();
             }
@@ -131,10 +135,10 @@ public class AiConfigService : IAiConfigService
     public async Task AddCustomModelAsync(AiProvider provider, string modelId)
     {
         using var db = await _dbFactory.CreateDbContextAsync();
-        var exists = await db.AiModels.AnyAsync(m => m.Provider == provider && m.ModelId == modelId);
+        var exists = await db.FuzzAiModels.AnyAsync(m => m.Provider == provider && m.ModelId == modelId);
         if (!exists)
         {
-            db.AiModels.Add(new FuzzAiModel
+            db.FuzzAiModels.Add(new FuzzAiModel
             {
                 Provider = provider,
                 ModelId = modelId,
@@ -148,17 +152,17 @@ public class AiConfigService : IAiConfigService
     public async Task AddModelAsync(FuzzAiModel model)
     {
         using var db = await _dbFactory.CreateDbContextAsync();
-        db.AiModels.Add(model);
+        db.FuzzAiModels.Add(model);
         await db.SaveChangesAsync();
     }
 
     public async Task DeleteModelAsync(int id)
     {
         using var db = await _dbFactory.CreateDbContextAsync();
-        var model = await db.AiModels.FindAsync(id);
+        var model = await db.FuzzAiModels.FindAsync(id);
         if (model != null)
         {
-            db.AiModels.Remove(model);
+            db.FuzzAiModels.Remove(model);
             await db.SaveChangesAsync();
         }
     }
