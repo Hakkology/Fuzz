@@ -46,6 +46,7 @@ builder.Services.AddIdentityCore<FuzzUser>(options =>
     {
         options.SignIn.RequireConfirmedAccount = false;
     })
+    .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<FuzzDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
@@ -57,6 +58,7 @@ builder.Services.AddScoped<IAiTool, SqlAiTool>();
 builder.Services.AddScoped<IAiTool, TimeAiTool>();
 
 // AI Services
+builder.Services.AddScoped<IAiConfigService, AiConfigService>();
 builder.Services.AddKeyedScoped<IFuzzAgentService, GeminiAgentService>(AiProvider.Gemini);
 builder.Services.AddKeyedScoped<IFuzzAgentService, OpenAiAgentService>(AiProvider.OpenAI);
 builder.Services.AddKeyedScoped<IFuzzAgentService, LocalAgentService>(AiProvider.Local);

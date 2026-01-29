@@ -3,7 +3,7 @@
 @using Fuzz.Domain.Entities
 @using Microsoft.EntityFrameworkCore
 @rendermode InteractiveServer
-@inject IDbContextFactory<FuzzDbContext> DbFactory
+@inject IAiConfigService ConfigService
 @inject AuthenticationStateProvider AuthProvider
 @inject ISnackbar Snackbar
 @inject ILogger<Settings> Logger
@@ -106,7 +106,7 @@
                         </MudTd>
                         <MudTd DataLabel="API Key">@(string.IsNullOrEmpty(context.ApiKey) ? "Yok" : "*******")</MudTd>
                         <MudTd DataLabel="Aktif">
-                            <MudSwitch T="bool" Value="context.IsActive" ValueChanged="@((val) => SetActive(context))" Color="Color.Primary" UnCheckedColor="Color.Default" />
+                            <MudSwitch T="bool" Value="context.IsActive" ValueChanged="@((bool val) => SetActive(context))" Color="Color.Primary" UnCheckedColor="Color.Default" />
                         </MudTd>
                         <MudTd>
                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteConfig(context.Id))" Size="Size.Small" />
@@ -196,8 +196,7 @@
 
     private async Task LoadModels()
     {
-        using var db = await DbFactory.CreateDbContextAsync();
-        _allModels = await db.AiModels.OrderBy(m => m.DisplayName).ToListAsync();
+        _allModels = await ConfigService.GetModelsAsync();
     }
 
     private void UpdateAvailableModels()
@@ -205,7 +204,7 @@
         _availableModels = _allModels.Where(m => m.Provider == _newConfig.Provider).ToList();
         if (!_availableModels.Any(m => m.ModelId == _newConfig.ModelId))
         {
-            _newConfig.ModelId = _availableModels.FirstOrDefault()?.ModelId ?? "";
+            _newConfig.ModelId = _availableModels.FirstOrDefault()?.ModelId ?? "custom";
         }
     }
 
@@ -222,16 +221,11 @@
         _isLoading = true;
         try
         {
-            using var db = await DbFactory.CreateDbContextAsync();
-            _configs = await db.AiConfigurations
-                .Where(c => c.UserId == _userId)
-                .OrderByDescending(c => c.IsActive)
-                .ThenBy(c => c.Provider)
-                .ToListAsync();
+            _configs = await ConfigService.GetUserConfigsAsync(_userId);
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Yapılandırmalar veritabanından çekilemedi.");
+            Logger.LogError(ex, "Yapılandırmalar çekilemedi.");
         }
         finally
         {
@@ -258,28 +252,11 @@
 
         try
         {
-            using var db = await DbFactory.CreateDbContextAsync();
-            
-            // Eğer özel model girildiyse, önce modellere ekle (yoksa)
+            // Eğer özel model girildiyse, önce servise ekle
             if (_newConfig.ModelId == "custom")
             {
-                var existingModel = await db.AiModels.FirstOrDefaultAsync(m => m.Provider == _newConfig.Provider && m.ModelId == _customModelId);
-                if (existingModel == null)
-                {
-                    var newModel = new FuzzAiModel 
-                    { 
-                        Provider = _newConfig.Provider, 
-                        ModelId = _customModelId, 
-                        DisplayName = _customModelId + " (Özel)",
-                        IsCustom = true 
-                    };
-                    db.AiModels.Add(newModel);
-                    await db.SaveChangesAsync();
-                    
-                    // Listeleri güncelle
-                    await LoadModels();
-                    UpdateAvailableModels();
-                }
+                await ConfigService.AddCustomModelAsync(_newConfig.Provider, _customModelId);
+                await LoadModels();
                 _newConfig.ModelId = _customModelId;
             }
 
@@ -287,8 +264,7 @@
             _newConfig.UpdatedAt = DateTime.UtcNow;
             _newConfig.IsActive = !_configs.Any();
 
-            db.AiConfigurations.Add(_newConfig);
-            await db.SaveChangesAsync();
+            await ConfigService.AddConfigAsync(_newConfig);
 
             Snackbar.Add("Yapılandırma başarıyla eklendi.", Severity.Success);
             
@@ -316,15 +292,7 @@
     {
         try
         {
-            using var db = await DbFactory.CreateDbContextAsync();
-            var all = await db.AiConfigurations.Where(c => c.UserId == _userId).ToListAsync();
-            
-            foreach (var c in all)
-            {
-                c.IsActive = (c.Id == config.Id);
-            }
-
-            await db.SaveChangesAsync();
+            await ConfigService.SetActiveConfigAsync(config.Id, _userId);
             await LoadConfigs();
             Snackbar.Add($"{config.Provider} şu an aktif sağlayıcı.", Severity.Info);
         }
@@ -339,15 +307,9 @@
     {
         try
         {
-            using var db = await DbFactory.CreateDbContextAsync();
-            var config = await db.AiConfigurations.FindAsync(id);
-            if (config != null)
-            {
-                db.AiConfigurations.Remove(config);
-                await db.SaveChangesAsync();
-                await LoadConfigs();
-                Snackbar.Add("Yapılandırma silindi.", Severity.Warning);
-            }
+            await ConfigService.DeleteConfigAsync(id);
+            await LoadConfigs();
+            Snackbar.Add("Yapılandırma silindi.", Severity.Warning);
         }
         catch (Exception ex)
         {

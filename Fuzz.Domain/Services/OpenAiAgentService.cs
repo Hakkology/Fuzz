@@ -1,17 +1,14 @@
 using OpenAI.Chat;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using Fuzz.Domain.Data;
 using Fuzz.Domain.Ai;
 using Fuzz.Domain.Entities;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
 namespace Fuzz.Domain.Services;
 
 public class OpenAiAgentService : IFuzzAgentService
 {
-    private readonly IDbContextFactory<FuzzDbContext> _dbFactory;
+    private readonly IAiConfigService _configService;
     private readonly ILogger<OpenAiAgentService> _logger;
     private readonly IEnumerable<IAiTool> _tools;
     private readonly List<ChatMessage> _history = new();
@@ -19,36 +16,28 @@ public class OpenAiAgentService : IFuzzAgentService
     public string? LastSql => _tools.OfType<Ai.Tools.SqlAiTool>().FirstOrDefault()?.LastQuery;
 
     public OpenAiAgentService(
-        IDbContextFactory<FuzzDbContext> dbFactory, 
+        IAiConfigService configService, 
         ILogger<OpenAiAgentService> logger,
         IEnumerable<IAiTool> tools)
     {
-        _dbFactory = dbFactory;
+        _configService = configService;
         _logger = logger;
         _tools = tools;
-    }
-
-    private async Task<FuzzAiConfig?> GetActiveConfigAsync(string userId)
-    {
-        using var db = await _dbFactory.CreateDbContextAsync();
-        return await db.AiConfigurations
-            .FirstOrDefaultAsync(c => c.UserId == userId && c.IsActive && c.Provider == AiProvider.OpenAI);
     }
 
     public async Task<FuzzResponse> ProcessCommandAsync(string input, string userId)
     {
         try 
         {
-            var configData = await GetActiveConfigAsync(userId);
+            var configData = await _configService.GetActiveConfigAsync(userId, AiProvider.OpenAI);
             if (configData == null || string.IsNullOrWhiteSpace(configData.ApiKey))
             {
                 return new FuzzResponse { Answer = "⚠️ Lütfen 'AI Ayarları' sayfasından aktif bir OpenAI yapılandırması seçin." };
             }
 
             string modelId = string.IsNullOrWhiteSpace(configData.ModelId) ? "gpt-4o" : configData.ModelId;
-            ChatClient client = new(model: modelId, apiKey: configData.ApiKey.Trim());
-            
-            // Initialization
+            var client = new ChatClient(model: modelId, apiKey: configData.ApiKey.Trim());
+
             if (_history.Count == 0 || (_history[0] is SystemChatMessage scm && !scm.Content[0].Text.Contains(userId)))
             {
                 _history.Clear();
@@ -67,7 +56,6 @@ KURALLAR:
             foreach (var tool in _tools)
             {
                 var def = tool.GetDefinition();
-                // OpenAI SDK uses a slightly different way to define tools, but we can wrap our schema
                 var parameters = BinaryData.FromString(JsonSerializer.Serialize(def.Parameters));
                 options.Tools.Add(ChatTool.CreateFunctionTool(def.Name, def.Description, parameters));
             }

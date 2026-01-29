@@ -19,7 +19,7 @@ public interface IFuzzAgentService
 
 public class GeminiAgentService : IFuzzAgentService
 {
-    private readonly IDbContextFactory<FuzzDbContext> _dbFactory;
+    private readonly IAiConfigService _configService;
     private readonly ILogger<GeminiAgentService> _logger;
     private readonly IEnumerable<IAiTool> _tools;
     private readonly List<Content> _history = new();
@@ -27,27 +27,20 @@ public class GeminiAgentService : IFuzzAgentService
     public string? LastSql => _tools.OfType<Ai.Tools.SqlAiTool>().FirstOrDefault()?.LastQuery;
 
     public GeminiAgentService(
-        IDbContextFactory<FuzzDbContext> dbFactory, 
+        IAiConfigService configService, 
         ILogger<GeminiAgentService> logger,
         IEnumerable<IAiTool> tools)
     {
-        _dbFactory = dbFactory;
+        _configService = configService;
         _logger = logger;
         _tools = tools;
-    }
-
-    private async Task<FuzzAiConfig?> GetActiveConfigAsync(string userId)
-    {
-        using var db = await _dbFactory.CreateDbContextAsync();
-        return await db.AiConfigurations
-            .FirstOrDefaultAsync(c => c.UserId == userId && c.IsActive && c.Provider == AiProvider.Gemini);
     }
 
     public async Task<FuzzResponse> ProcessCommandAsync(string input, string userId)
     {
         try 
         {
-            var configData = await GetActiveConfigAsync(userId);
+            var configData = await _configService.GetActiveConfigAsync(userId, AiProvider.Gemini);
             if (configData == null || string.IsNullOrWhiteSpace(configData.ApiKey))
             {
                 return new FuzzResponse { Answer = "⚠️ Lütfen 'AI Ayarları' sayfasından aktif bir Gemini yapılandırması seçin." };

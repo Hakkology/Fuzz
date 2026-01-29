@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Identity;
 using Fuzz.Domain.Data;
+using Fuzz.Domain.Entities;
 
 namespace Fuzz.Domain.Services;
 
@@ -13,11 +15,19 @@ public interface IFuzzSeedService
 public class FuzzSeedService : IFuzzSeedService
 {
     private readonly FuzzDbContext _dbContext;
+    private readonly UserManager<FuzzUser> _userManager;
+    private readonly RoleManager<IdentityRole> _roleManager;
     private readonly ILogger<FuzzSeedService> _logger;
 
-    public FuzzSeedService(FuzzDbContext dbContext, ILogger<FuzzSeedService> logger)
+    public FuzzSeedService(
+        FuzzDbContext dbContext, 
+        UserManager<FuzzUser> userManager,
+        RoleManager<IdentityRole> roleManager,
+        ILogger<FuzzSeedService> logger)
     {
         _dbContext = dbContext;
+        _userManager = userManager;
+        _roleManager = roleManager;
         _logger = logger;
     }
 
@@ -72,7 +82,10 @@ public class FuzzSeedService : IFuzzSeedService
                 return;
             }
 
-            // Varsayılan modelleri ekle
+            // 1. Rolleri ve Admin'i oluştur
+            await SeedRolesAndAdminAsync();
+
+            // 2. Varsayılan modelleri ekle
             if (!await _dbContext.AiModels.AnyAsync(m => !m.IsCustom))
             {
                 _logger.LogInformation("🌱 Varsayılan AI modelleri ekleniyor...");
@@ -81,23 +94,14 @@ public class FuzzSeedService : IFuzzSeedService
 
                 // Gemini Modelleri
                 defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.Gemini, ModelId = "gemini-3-flash", DisplayName = "Gemini 3 Flash" });
-                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.Gemini, ModelId = "gemini-2.5-flash-lite", DisplayName = "Gemini 2.5 Flash Lite" });
-                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.Gemini, ModelId = "gemini-2.5-flash-tts", DisplayName = "Gemini 2.5 Flash TTS" });
-                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.Gemini, ModelId = "gemini-2.5-flash", DisplayName = "Gemini 2.5 Flash" });
+                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.Gemini, ModelId = "gemini-2.1-flash", DisplayName = "Gemini 2.1 Flash" });
                 defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.Gemini, ModelId = "gemini-robotics-er-1.5-preview", DisplayName = "Gemini Robotics ER 1.5 Preview" });
-                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.Gemini, ModelId = "gemma-3-12b", DisplayName = "Gemma 3 12B" });
-                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.Gemini, ModelId = "gemma-3-1b", DisplayName = "Gemma 3 1B" });
                 defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.Gemini, ModelId = "gemma-3-27b", DisplayName = "Gemma 3 27B" });
-                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.Gemini, ModelId = "gemma-3-2b", DisplayName = "Gemma 3 2B" });
-                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.Gemini, ModelId = "gemma-3-4b", DisplayName = "Gemma 3 4B" });
-                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.Gemini, ModelId = "gemini-embedding-1", DisplayName = "Gemini Embedding 1" });
-                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.Gemini, ModelId = "gemini-2.5-flash-native-audio-dialog", DisplayName = "Gemini 2.5 Flash Native Audio Dialog" });
 
                 // OpenAI Modelleri
                 defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.OpenAI, ModelId = "gpt-4o", DisplayName = "GPT-4o" });
                 defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.OpenAI, ModelId = "gpt-4o-mini", DisplayName = "GPT-4o-mini" });
-                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.OpenAI, ModelId = "o1", DisplayName = "o1" });
-                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.OpenAI, ModelId = "o1-mini", DisplayName = "o1-mini" });
+                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.OpenAI, ModelId = "o1-preview", DisplayName = "o1 Preview" });
 
                 _dbContext.AiModels.AddRange(defaultModels);
                 await _dbContext.SaveChangesAsync();
@@ -109,6 +113,38 @@ public class FuzzSeedService : IFuzzSeedService
         catch (Exception ex)
         {
             _logger.LogError(ex, "❌ Seed hatası: {Message}", ex.Message);
+        }
+    }
+
+    private async Task SeedRolesAndAdminAsync()
+    {
+        // Rolü oluştur
+        if (!await _roleManager.RoleExistsAsync("Admin"))
+        {
+            _logger.LogInformation("🔑 'Admin' rolü oluşturuluyor...");
+            await _roleManager.CreateAsync(new IdentityRole("Admin"));
+        }
+
+        // Admin kullanıcısını oluştur
+        var adminEmail = "admin@fuzz.com";
+        var adminUser = await _userManager.FindByEmailAsync(adminEmail);
+        
+        if (adminUser == null)
+        {
+            _logger.LogInformation("👤 Varsayılan admin kullanıcısı oluşturuluyor...");
+            adminUser = new FuzzUser 
+            { 
+                UserName = adminEmail, 
+                Email = adminEmail, 
+                EmailConfirmed = true 
+            };
+            
+            var result = await _userManager.CreateAsync(adminUser, "Admin123!");
+            if (result.Succeeded)
+            {
+                await _userManager.AddToRoleAsync(adminUser, "Admin");
+                _logger.LogInformation("✅ Admin kullanıcısı oluşturuldu ve 'Admin' rolüne atandı.");
+            }
         }
     }
 }

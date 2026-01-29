@@ -1,18 +1,16 @@
 using OpenAI;
 using OpenAI.Chat;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using Fuzz.Domain.Data;
+using System.ClientModel;
 using Fuzz.Domain.Ai;
 using Fuzz.Domain.Entities;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
-using System.ClientModel;
 
 namespace Fuzz.Domain.Services;
 
 public class LocalAgentService : IFuzzAgentService
 {
-    private readonly IDbContextFactory<FuzzDbContext> _dbFactory;
+    private readonly IAiConfigService _configService;
     private readonly ILogger<LocalAgentService> _logger;
     private readonly IEnumerable<IAiTool> _tools;
     private readonly List<ChatMessage> _history = new();
@@ -20,27 +18,20 @@ public class LocalAgentService : IFuzzAgentService
     public string? LastSql => _tools.OfType<Ai.Tools.SqlAiTool>().FirstOrDefault()?.LastQuery;
 
     public LocalAgentService(
-        IDbContextFactory<FuzzDbContext> dbFactory, 
+        IAiConfigService configService, 
         ILogger<LocalAgentService> logger,
         IEnumerable<IAiTool> tools)
     {
-        _dbFactory = dbFactory;
+        _configService = configService;
         _logger = logger;
         _tools = tools;
-    }
-
-    private async Task<FuzzAiConfig?> GetActiveConfigAsync(string userId)
-    {
-        using var db = await _dbFactory.CreateDbContextAsync();
-        return await db.AiConfigurations
-            .FirstOrDefaultAsync(c => c.UserId == userId && c.IsActive && c.Provider == AiProvider.Local);
     }
 
     public async Task<FuzzResponse> ProcessCommandAsync(string input, string userId)
     {
         try 
         {
-            var configData = await GetActiveConfigAsync(userId);
+            var configData = await _configService.GetActiveConfigAsync(userId, AiProvider.Local);
             if (configData == null)
             {
                 return new FuzzResponse { Answer = "⚠️ Lütfen 'AI Ayarları' sayfasından aktif bir Yerel (Ollama vb.) yapılandırması seçin." };
@@ -49,13 +40,11 @@ public class LocalAgentService : IFuzzAgentService
             string modelId = string.IsNullOrWhiteSpace(configData.ModelId) ? "llama3" : configData.ModelId;
             string apiBase = string.IsNullOrWhiteSpace(configData.ApiBase) ? "http://localhost:11434/v1" : configData.ApiBase;
             
-            // OpenAI SDK can be directed to a local endpoint
-            ChatClient client = new(model: modelId, credential: new ApiKeyCredential(configData.ApiKey.Trim()), options: new OpenAIClientOptions
+            var client = new ChatClient(model: modelId, credential: new ApiKeyCredential(configData.ApiKey?.Trim() ?? "empty"), options: new OpenAIClientOptions
             {
                 Endpoint = new Uri(apiBase)
             });
-            
-            // Initialization
+
             if (_history.Count == 0 || (_history[0] is SystemChatMessage scm && !scm.Content[0].Text.Contains(userId)))
             {
                 _history.Clear();
@@ -116,8 +105,8 @@ KURALLAR:
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Yerel Agent hatası");
-            return new FuzzResponse { Answer = $"Yerel model ile iletişim kurulurken bir hata oluştu: {ex.Message}. Lütfen yerel sunucunuzun (Ollama vb.) açık ve OpenAI API uyumlu modda çalıştığından emin olun." };
+            _logger.LogError(ex, "Local Agent hatası");
+            return new FuzzResponse { Answer = $"Bir teknik hata oluştu: {ex.Message}" };
         }
     }
 
