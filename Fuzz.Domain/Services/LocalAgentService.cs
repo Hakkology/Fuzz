@@ -1,11 +1,12 @@
+using Fuzz.Domain.Ai;
+using Fuzz.Domain.Entities;
+using Fuzz.Domain.Models;
+using Fuzz.Domain.Services.Interfaces;
+using Microsoft.Extensions.Logging;
 using OpenAI;
 using OpenAI.Chat;
 using System.ClientModel;
-using Fuzz.Domain.Ai;
-using Fuzz.Domain.Entities;
-using Microsoft.Extensions.Logging;
 using System.Text.Json;
-using Fuzz.Domain.Models;
 
 namespace Fuzz.Domain.Services;
 

@@ -4,6 +4,7 @@ using Fuzz.Domain.Data;
 using Fuzz.Domain.Entities;
 using Fuzz.Domain.Models;
 using System.Net.Http.Json;
+using Fuzz.Domain.Services.Interfaces;
 
 namespace Fuzz.Domain.Services;
 

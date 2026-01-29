@@ -1,22 +1,12 @@
-using Google.GenAI;
-using Google.GenAI.Types;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using Fuzz.Domain.Data;
-using Fuzz.Domain.Models;
 using Fuzz.Domain.Ai;
 using Fuzz.Domain.Entities;
-using System.Text.Json;
+using Fuzz.Domain.Models;
+using Fuzz.Domain.Services.Interfaces;
+using Google.GenAI;
+using Google.GenAI.Types;
+using Microsoft.Extensions.Logging;
 
 namespace Fuzz.Domain.Services;
-
-public interface IFuzzAgentService
-{
-    Task<FuzzResponse> ProcessCommandAsync(string input, string userId);
-    void ClearHistory();
-    string? LastSql { get; }
-}
 
 public class GeminiAgentService : IFuzzAgentService
 {

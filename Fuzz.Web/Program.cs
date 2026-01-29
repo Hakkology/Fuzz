@@ -10,6 +10,7 @@ using Fuzz.Domain.Services;
 using Fuzz.Domain.Ai;
 using Fuzz.Domain.Ai.Tools;
 using MudBlazor.Services;
+using Fuzz.Domain.Services.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
