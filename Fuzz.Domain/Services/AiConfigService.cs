@@ -1,18 +1,26 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Fuzz.Domain.Data;
 using Fuzz.Domain.Entities;
-using Microsoft.Extensions.Logging;
+using Fuzz.Domain.Models;
+using System.Net.Http;
+using System.Net.Http.Json;
 
 namespace Fuzz.Domain.Services;
 
 public class AiConfigService : IAiConfigService
 {
     private readonly IDbContextFactory<FuzzDbContext> _dbFactory;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<AiConfigService> _logger;
 
-    public AiConfigService(IDbContextFactory<FuzzDbContext> dbFactory, ILogger<AiConfigService> logger)
+    public AiConfigService(
+        IDbContextFactory<FuzzDbContext> dbFactory, 
+        IHttpClientFactory httpClientFactory,
+        ILogger<AiConfigService> logger)
     {
         _dbFactory = dbFactory;
+        _httpClientFactory = httpClientFactory;
         _logger = logger;
     }
 
@@ -42,6 +50,53 @@ public class AiConfigService : IAiConfigService
             query = query.Where(m => m.Provider == provider.Value);
         }
         return await query.OrderBy(m => m.DisplayName).ToListAsync();
+    }
+
+    public async Task<List<FuzzAiModel>> GetLocalModelsAsync(string? apiBase = null)
+    {
+        var localModels = new List<FuzzAiModel>();
+        try
+        {
+            var baseUrl = string.IsNullOrWhiteSpace(apiBase) ? "http://localhost:11434" : apiBase.TrimEnd('/');
+            if (baseUrl.EndsWith("/v1")) baseUrl = baseUrl.Substring(0, baseUrl.Length - 3);
+
+            using var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(3);
+            
+            var response = await client.GetFromJsonAsync<OllamaTagsResponse>($"{baseUrl}/api/tags");
+            if (response?.Models != null)
+            {
+                using var db = await _dbFactory.CreateDbContextAsync();
+                var existingModels = await db.AiModels
+                    .Where(m => m.Provider == AiProvider.Local)
+                    .Select(m => m.ModelId)
+                    .ToListAsync();
+
+                foreach (var model in response.Models)
+                {
+                    var modelEntity = new FuzzAiModel 
+                    { 
+                        Provider = AiProvider.Local, 
+                        ModelId = model.Name, 
+                        DisplayName = $"{model.Name} (Local)",
+                        IsCustom = true
+                    };
+                    localModels.Add(modelEntity);
+
+                    // Veritabanında yoksa ekle
+                    if (!existingModels.Contains(model.Name))
+                    {
+                        db.AiModels.Add(modelEntity);
+                    }
+                }
+                await db.SaveChangesAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("Ollama modelleri çekilemedi veya kaydedilemedi: {Message}", ex.Message);
+        }
+        return localModels;
     }
 
     public async Task AddConfigAsync(FuzzAiConfig config)

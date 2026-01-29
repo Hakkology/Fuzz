@@ -1,0 +1,19 @@
+  Geri y├╝klenecek projeler belirleniyor...
+  Geri y├╝kleme i├ğin t├╝m projeler g├╝ncel.
+  Fuzz.Web.Client -> C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Web.Client\bin\Debug\net10.0\Fuzz.Web.Client.dll
+  Fuzz.Web.Client (Blazor output) -> C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Web.Client\bin\Debug\net10.0\wwwroot
+C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Domain\Services\AiConfigService.cs(12,22): error CS0246: 'IDbContextFactory<>' t├╝r├╝ veya ad alan─▒ ad─▒ bulunamad─▒ (bir using y├Ânergeniz veya derleme ba┼şvurunuz mu eksik?) [C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Domain\Fuzz.Domain.csproj]
+C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Domain\Services\AiConfigService.cs(13,22): error CS0246: 'IHttpClientFactory' t├╝r├╝ veya ad alan─▒ ad─▒ bulunamad─▒ (bir using y├Ânergeniz veya derleme ba┼şvurunuz mu eksik?) [C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Domain\Fuzz.Domain.csproj]
+C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Domain\Services\AiConfigService.cs(17,9): error CS0246: 'IDbContextFactory<>' t├╝r├╝ veya ad alan─▒ ad─▒ bulunamad─▒ (bir using y├Ânergeniz veya derleme ba┼şvurunuz mu eksik?) [C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Domain\Fuzz.Domain.csproj]
+C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Domain\Services\AiConfigService.cs(18,9): error CS0246: 'IHttpClientFactory' t├╝r├╝ veya ad alan─▒ ad─▒ bulunamad─▒ (bir using y├Ânergeniz veya derleme ba┼şvurunuz mu eksik?) [C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Domain\Fuzz.Domain.csproj]
+
+Olu┼şturma BA┼ŞARISIZ OLDU.
+
+C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Domain\Services\AiConfigService.cs(12,22): error CS0246: 'IDbContextFactory<>' t├╝r├╝ veya ad alan─▒ ad─▒ bulunamad─▒ (bir using y├Ânergeniz veya derleme ba┼şvurunuz mu eksik?) [C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Domain\Fuzz.Domain.csproj]
+C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Domain\Services\AiConfigService.cs(13,22): error CS0246: 'IHttpClientFactory' t├╝r├╝ veya ad alan─▒ ad─▒ bulunamad─▒ (bir using y├Ânergeniz veya derleme ba┼şvurunuz mu eksik?) [C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Domain\Fuzz.Domain.csproj]
+C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Domain\Services\AiConfigService.cs(17,9): error CS0246: 'IDbContextFactory<>' t├╝r├╝ veya ad alan─▒ ad─▒ bulunamad─▒ (bir using y├Ânergeniz veya derleme ba┼şvurunuz mu eksik?) [C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Domain\Fuzz.Domain.csproj]
+C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Domain\Services\AiConfigService.cs(18,9): error CS0246: 'IHttpClientFactory' t├╝r├╝ veya ad alan─▒ ad─▒ bulunamad─▒ (bir using y├Ânergeniz veya derleme ba┼şvurunuz mu eksik?) [C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Domain\Fuzz.Domain.csproj]
+    0 Uyar─▒
+    4 Hata
+
+Ge├ğen S├╝re 00:00:02.00
