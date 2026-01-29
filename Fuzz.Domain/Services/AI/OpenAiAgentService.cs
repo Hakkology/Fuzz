@@ -28,7 +28,7 @@ public class OpenAiAgentService : IFuzzAgentService
         _tools = tools;
     }
 
-    public async Task<FuzzResponse> ProcessCommandAsync(string input, string userId)
+    public async Task<FuzzResponse> ProcessCommandAsync(string input, string userId, bool useTools = true)
     {
         try 
         {
@@ -39,10 +39,10 @@ public class OpenAiAgentService : IFuzzAgentService
             var modelId = string.IsNullOrWhiteSpace(configData.ModelId) ? "gpt-4o" : configData.ModelId;
             var client = new ChatClient(model: modelId, apiKey: configData.ApiKey.Trim());
 
-            InitializeHistory(userId);
+            InitializeHistory(userId, useTools);
             _history.Add(new UserChatMessage(input));
 
-            var options = await BuildOptionsAsync(configData.Id);
+            var options = await BuildOptionsAsync(configData.Id, useTools);
             var finalAnswer = await ExecuteAgentLoopAsync(client, options, userId);
 
             TrimHistory();
@@ -59,16 +59,22 @@ public class OpenAiAgentService : IFuzzAgentService
 
     #region Private Methods
 
-    private void InitializeHistory(string userId)
+    private void InitializeHistory(string userId, bool useTools)
     {
-        if (_history.Count == 0 || (_history[0] is SystemChatMessage scm && !scm.Content[0].Text.Contains(userId)))
+        // Check if history is empty or if the system prompt has changed intent (simple check)
+        bool currentIsTools = _history.Count > 0 && _history[0] is SystemChatMessage scm && scm.Content[0].Text.Contains("You are Fuzz");
+
+        if (_history.Count == 0 || (currentIsTools != useTools))
         {
             _history.Clear();
-            _history.Add(new SystemChatMessage(AgentPrompts.GetTaskManagerPrompt(userId)));
+            string prompt = useTools 
+                ? AgentPrompts.GetTaskManagerPrompt(userId)
+                : "You are a helpful AI assistant named Fuzz. You can answer questions and chat with the user.";
+            _history.Add(new SystemChatMessage(prompt));
         }
     }
 
-    private async Task<ChatCompletionOptions> BuildOptionsAsync(int configId)
+    private async Task<ChatCompletionOptions> BuildOptionsAsync(int configId, bool useTools)
     {
         var aiParams = await _configService.GetParametersAsync(configId);
         var options = new ChatCompletionOptions
@@ -80,11 +86,14 @@ public class OpenAiAgentService : IFuzzAgentService
             PresencePenalty = aiParams != null ? (float)aiParams.PresencePenalty : 0
         };
 
-        foreach (var tool in _tools)
+        if (useTools)
         {
-            var def = tool.GetDefinition();
-            var toolParams = BinaryData.FromString(JsonSerializer.Serialize(def.Parameters));
-            options.Tools.Add(ChatTool.CreateFunctionTool(def.Name, def.Description, toolParams));
+            foreach (var tool in _tools)
+            {
+                var def = tool.GetDefinition();
+                var toolParams = BinaryData.FromString(JsonSerializer.Serialize(def.Parameters));
+                options.Tools.Add(ChatTool.CreateFunctionTool(def.Name, def.Description, toolParams));
+            }
         }
 
         return options;

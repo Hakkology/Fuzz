@@ -28,7 +28,7 @@ public class GeminiAgentService : IFuzzAgentService
         _tools = tools;
     }
 
-    public async Task<FuzzResponse> ProcessCommandAsync(string input, string userId)
+    public async Task<FuzzResponse> ProcessCommandAsync(string input, string userId, bool useTools = true)
     {
         try 
         {
@@ -39,10 +39,10 @@ public class GeminiAgentService : IFuzzAgentService
             var client = new Client(apiKey: configData.ApiKey.Trim());
             var modelId = string.IsNullOrWhiteSpace(configData.ModelId) ? "gemini-1.5-flash" : configData.ModelId;
             
-            InitializeHistory(userId);
+            InitializeHistory(userId, useTools);
             _history.Add(new Content { Role = "user", Parts = new List<Part> { new Part { Text = input } } });
 
-            var chatConfig = await BuildConfigAsync(configData.Id);
+            var chatConfig = await BuildConfigAsync(configData.Id, useTools);
             var finalAnswer = await ExecuteAgentLoopAsync(client, modelId, chatConfig, userId);
 
             TrimHistory();
@@ -59,36 +59,40 @@ public class GeminiAgentService : IFuzzAgentService
 
     #region Private Methods
 
-    private void InitializeHistory(string userId)
+    private void InitializeHistory(string userId, bool useTools)
     {
-        if (_history.Count == 0 || !HistoryContainsUserId(userId))
+        // Simple check if first message exists. A more robust check might verify system prompt content.
+        if (_history.Count == 0)
         {
             _history.Clear();
             // Gemini requires alternating user/model roles, start with model
             _history.Add(new Content { Role = "model", Parts = new List<Part> { new Part { Text = "Ready." } } });
-            _history.Add(new Content { Role = "user", Parts = new List<Part> { new Part { Text = AgentPrompts.GetTaskManagerPrompt(userId) } } });
+            
+            string prompt = useTools 
+                ? AgentPrompts.GetTaskManagerPrompt(userId)
+                : "You are a helpful AI assistant named Fuzz. You can answer questions and chat with the user.";
+            _history.Add(new Content { Role = "user", Parts = new List<Part> { new Part { Text = prompt } } });
         }
     }
 
-    private bool HistoryContainsUserId(string userId)
-    {
-        return _history.Count > 0 
-            && _history[0].Parts.Count > 0 
-            && _history[0].Parts[0].Text?.Contains(userId) == true;
-    }
-
-    private async Task<GenerateContentConfig> BuildConfigAsync(int configId)
+    private async Task<GenerateContentConfig> BuildConfigAsync(int configId, bool useTools)
     {
         var parameters = await _configService.GetParametersAsync(configId);
-        var toolDefinitions = new Tool { FunctionDeclarations = _tools.Select(t => t.GetDefinition()).ToList() };
-
-        return new GenerateContentConfig
+        
+        var config = new GenerateContentConfig
         {
-            Tools = new List<Tool> { toolDefinitions },
             Temperature = parameters != null ? (float)parameters.Temperature : AgentPrompts.DefaultTemperature,
             MaxOutputTokens = parameters?.MaxTokens ?? AgentPrompts.DefaultMaxTokens,
             TopP = parameters != null ? (float)parameters.TopP : AgentPrompts.DefaultTopP
         };
+
+        if (useTools)
+        {
+            var toolDefinitions = new Tool { FunctionDeclarations = _tools.Select(t => t.GetDefinition()).ToList() };
+            config.Tools = new List<Tool> { toolDefinitions };
+        }
+
+        return config;
     }
 
     private async Task<string> ExecuteAgentLoopAsync(Client client, string modelId, GenerateContentConfig config, string userId)
