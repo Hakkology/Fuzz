@@ -113,7 +113,11 @@ public class FuzzSeedService : IFuzzSeedService
 
                 // ElevenLabs (Vocal Agents)
                 new() { Provider = AiProvider.ElevenLabs, ModelId = "TxGEqnHWf9848Y7l7R7i", DisplayName = "ElevenLabs - Josh (Vocal)", Capabilities = AiCapabilities.Sound },
-                new() { Provider = AiProvider.ElevenLabs, ModelId = "EXAVITQu4vr4xnSDxMaL", DisplayName = "ElevenLabs - Bella (Vocal)", Capabilities = AiCapabilities.Sound }
+                new() { Provider = AiProvider.ElevenLabs, ModelId = "EXAVITQu4vr4xnSDxMaL", DisplayName = "ElevenLabs - Bella (Vocal)", Capabilities = AiCapabilities.Sound },
+
+                // Replicate (MusicGen)
+                new() { Provider = AiProvider.Replicate, ModelId = "meta/musicgen:stereo-melody-large", DisplayName = "MusicGen Stereo Melody Large", Capabilities = AiCapabilities.Sound },
+                new() { Provider = AiProvider.Replicate, ModelId = "meta/musicgen:stereo-large", DisplayName = "MusicGen Stereo Large", Capabilities = AiCapabilities.Sound }
             };
 
             foreach (var model in defaultModels)
