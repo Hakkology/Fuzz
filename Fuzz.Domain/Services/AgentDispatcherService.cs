@@ -1,9 +1,10 @@
-using Microsoft.EntityFrameworkCore;
 using Fuzz.Domain.Data;
 using Fuzz.Domain.Entities;
 using Fuzz.Domain.Models;
-using Microsoft.Extensions.Logging;
+using Fuzz.Domain.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Fuzz.Domain.Services;
 
@@ -13,7 +14,6 @@ public class AgentDispatcherService : IFuzzAgentService
     private readonly IFuzzAgentService _geminiService;
     private readonly IFuzzAgentService _openaiService;
     private readonly IFuzzAgentService _localService;
-    private readonly ILogger<AgentDispatcherService> _logger;
 
     public string? LastSql => _geminiService.LastSql ?? _openaiService.LastSql ?? _localService.LastSql;
 
@@ -21,14 +21,12 @@ public class AgentDispatcherService : IFuzzAgentService
         IDbContextFactory<FuzzDbContext> dbFactory,
         [FromKeyedServices(AiProvider.Gemini)] IFuzzAgentService geminiService,
         [FromKeyedServices(AiProvider.OpenAI)] IFuzzAgentService openaiService,
-        [FromKeyedServices(AiProvider.Local)] IFuzzAgentService localService,
-        ILogger<AgentDispatcherService> logger)
+        [FromKeyedServices(AiProvider.Local)] IFuzzAgentService localService)
     {
         _dbFactory = dbFactory;
         _geminiService = geminiService;
         _openaiService = openaiService;
         _localService = localService;
-        _logger = logger;
     }
 
     private async Task<AiProvider?> GetActiveProviderAsync(string userId)

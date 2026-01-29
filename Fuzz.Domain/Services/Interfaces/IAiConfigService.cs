@@ -1,6 +1,6 @@
 using Fuzz.Domain.Entities;
 
-namespace Fuzz.Domain.Services;
+namespace Fuzz.Domain.Services.Interfaces;
 
 public interface IAiConfigService
 {
