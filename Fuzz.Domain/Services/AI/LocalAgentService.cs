@@ -1,5 +1,6 @@
 using Fuzz.Domain.Entities;
 using Fuzz.Domain.Models;
+using Fuzz.Domain.Services.AI;
 using Fuzz.Domain.Services.Interfaces;
 using Fuzz.Domain.Services.Tools;
 using Microsoft.Extensions.Logging;
@@ -35,104 +36,17 @@ public class LocalAgentService : IFuzzAgentService
         {
             var configData = await _configService.GetActiveConfigAsync(userId, AiProvider.Local);
             if (configData == null)
-            {
                 return new FuzzResponse { Answer = "⚠️ Please configure an active Local AI (Ollama) endpoint in the 'AI Settings' page." };
-            }
 
-            string modelId = string.IsNullOrWhiteSpace(configData.ModelId) ? "llama3" : configData.ModelId;
-            string apiBase = string.IsNullOrWhiteSpace(configData.ApiBase) ? "http://localhost:11434/v1" : configData.ApiBase;
-            
-            string apiKey = string.IsNullOrWhiteSpace(configData.ApiKey) ? "ollama" : configData.ApiKey.Trim();
-            var client = new ChatClient(model: modelId, credential: new ApiKeyCredential(apiKey), options: new OpenAIClientOptions
-            {
-                Endpoint = new Uri(apiBase)
-            });
+            var client = CreateClient(configData);
 
-            if (_history.Count == 0 || (_history[0] is SystemChatMessage scm && !scm.Content[0].Text.Contains(userId)))
-            {
-                _history.Clear();
-                _history.Add(new SystemChatMessage($@"You are a helpful Personal Assistant who manages tasks for the user.
-
-SQL SYNTAX (CRITICAL - FOLLOW EXACTLY):
-- Table/Column names use DOUBLE QUOTES: ""FuzzTodos"", ""Title"", ""UserId""
-- String VALUES use SINGLE QUOTES: 'some text', '{userId}'
-- Booleans: TRUE or FALSE (not 0/1)
-
-EXAMPLE QUERIES:
-- List tasks: SELECT ""Title"", ""IsCompleted"" FROM ""FuzzTodos"" WHERE ""UserId"" = '{userId}'
-- Add task: INSERT INTO ""FuzzTodos"" (""Title"", ""IsCompleted"", ""UserId"") VALUES ('Task Name', FALSE, '{userId}')
-- Complete task: UPDATE ""FuzzTodos"" SET ""IsCompleted"" = TRUE WHERE ""Title"" = 'Task Name' AND ""UserId"" = '{userId}'
-
-CRITICAL RULES:
-1. You MUST call 'DatabaseTool' for EVERY operation (listing, adding, updating, deleting). NEVER assume success without calling the tool.
-2. After adding a task, the tool returns 'Rows affected: 1'. Only say 'Tamamdır, eklendi.' if you see 'Rows affected: 1'.
-3. If tool returns 'Rows affected: 0', say 'Bir sorun oluştu, ekleyemedim.'
-4. NEVER show SQL to the user. Respond naturally in Turkish."));
-            }
-
+            InitializeHistory(userId);
             _history.Add(new UserChatMessage(input));
 
-            var aiParams = await _configService.GetParametersAsync(configData.Id);
+            var options = await BuildOptionsAsync(configData.Id, forceToolCall: true);
+            var finalAnswer = await ExecuteAgentLoopAsync(client, options, userId);
 
-            ChatCompletionOptions options = new();
-            if (aiParams != null)
-            {
-                options.Temperature = (float)aiParams.Temperature;
-                options.MaxOutputTokenCount = aiParams.MaxTokens;
-                options.TopP = (float)aiParams.TopP;
-                options.FrequencyPenalty = (float)aiParams.FrequencyPenalty;
-                options.PresencePenalty = (float)aiParams.PresencePenalty;
-            }
-            else
-            {
-                options.Temperature = 0.1f;
-                options.MaxOutputTokenCount = 1024;
-            }
-
-            foreach (var tool in _tools)
-            {
-                var def = tool.GetDefinition();
-                var toolParams = BinaryData.FromString(JsonSerializer.Serialize(def.Parameters));
-                options.Tools.Add(ChatTool.CreateFunctionTool(def.Name, def.Description, toolParams));
-            }
-            
-            // Force the model to call a tool instead of generating text
-            options.ToolChoice = ChatToolChoice.CreateRequiredChoice();
-
-            string finalAnswer = "";
-            bool continueLoop = true;
-            int maxIterations = 5;
-
-            while (continueLoop && maxIterations-- > 0)
-            {
-                ChatCompletion completion = await client.CompleteChatAsync(_history, options);
-
-                if (completion.FinishReason == ChatFinishReason.ToolCalls)
-                {
-                    _history.Add(new AssistantChatMessage(completion));
-                    
-                    foreach (var toolCall in completion.ToolCalls)
-                    {
-                        var tool = _tools.FirstOrDefault(t => t.GetDefinition().Name == toolCall.FunctionName);
-                        if (tool != null)
-                        {
-                            var args = JsonSerializer.Deserialize<Dictionary<string, object?>>(toolCall.FunctionArguments.ToString()) ?? new();
-                            var result = await tool.ExecuteAsync(args, userId);
-                            
-                            _history.Add(new ToolChatMessage(toolCall.Id, result?.ToString() ?? ""));
-                        }
-                    }
-                }
-                else
-                {
-                    finalAnswer = completion.Content[0].Text;
-                    _history.Add(new AssistantChatMessage(completion));
-                    continueLoop = false;
-                }
-            }
-
-            if (_history.Count > 10) _history.RemoveRange(1, 2);
-
+            TrimHistory();
             return new FuzzResponse { Answer = finalAnswer, LastSql = LastSql };
         }
         catch (Exception ex)
@@ -143,4 +57,102 @@ CRITICAL RULES:
     }
 
     public void ClearHistory() => _history.Clear();
+
+    #region Private Methods
+
+    private static ChatClient CreateClient(FuzzAiConfig config)
+    {
+        var modelId = string.IsNullOrWhiteSpace(config.ModelId) ? "llama3" : config.ModelId;
+        var apiBase = string.IsNullOrWhiteSpace(config.ApiBase) ? "http://localhost:11434/v1" : config.ApiBase;
+        var apiKey = string.IsNullOrWhiteSpace(config.ApiKey) ? "ollama" : config.ApiKey.Trim();
+
+        return new ChatClient(
+            model: modelId, 
+            credential: new ApiKeyCredential(apiKey), 
+            options: new OpenAIClientOptions { Endpoint = new Uri(apiBase) });
+    }
+
+    private void InitializeHistory(string userId)
+    {
+        if (_history.Count == 0 || (_history[0] is SystemChatMessage scm && !scm.Content[0].Text.Contains(userId)))
+        {
+            _history.Clear();
+            // Local models need more explicit examples
+            _history.Add(new SystemChatMessage(AgentPrompts.GetTaskManagerPrompt(userId, includeExamples: true)));
+        }
+    }
+
+    private async Task<ChatCompletionOptions> BuildOptionsAsync(int configId, bool forceToolCall = false)
+    {
+        var aiParams = await _configService.GetParametersAsync(configId);
+        var options = new ChatCompletionOptions
+        {
+            Temperature = aiParams != null ? (float)aiParams.Temperature : AgentPrompts.DefaultTemperature,
+            MaxOutputTokenCount = aiParams?.MaxTokens ?? AgentPrompts.DefaultMaxTokens,
+            TopP = aiParams != null ? (float)aiParams.TopP : AgentPrompts.DefaultTopP,
+            FrequencyPenalty = aiParams != null ? (float)aiParams.FrequencyPenalty : 0,
+            PresencePenalty = aiParams != null ? (float)aiParams.PresencePenalty : 0
+        };
+
+        foreach (var tool in _tools)
+        {
+            var def = tool.GetDefinition();
+            var toolParams = BinaryData.FromString(JsonSerializer.Serialize(def.Parameters));
+            options.Tools.Add(ChatTool.CreateFunctionTool(def.Name, def.Description, toolParams));
+        }
+
+        if (forceToolCall)
+            options.ToolChoice = ChatToolChoice.CreateRequiredChoice();
+
+        return options;
+    }
+
+    private async Task<string> ExecuteAgentLoopAsync(ChatClient client, ChatCompletionOptions options, string userId)
+    {
+        int iterations = AgentPrompts.MaxIterations;
+
+        while (iterations-- > 0)
+        {
+            var result = await client.CompleteChatAsync(_history, options);
+            var completion = result.Value;
+
+            if (completion.FinishReason == ChatFinishReason.ToolCalls)
+            {
+                _history.Add(new AssistantChatMessage(completion));
+                await ProcessToolCallsAsync(completion.ToolCalls, userId);
+                
+                // After first tool call, don't force anymore to allow natural response
+                options.ToolChoice = null;
+            }
+            else
+            {
+                _history.Add(new AssistantChatMessage(completion));
+                return completion.Content[0].Text;
+            }
+        }
+
+        return "İşlem zaman aşımına uğradı.";
+    }
+
+    private async Task ProcessToolCallsAsync(IEnumerable<ChatToolCall> toolCalls, string userId)
+    {
+        foreach (var toolCall in toolCalls)
+        {
+            var tool = _tools.FirstOrDefault(t => t.GetDefinition().Name == toolCall.FunctionName);
+            if (tool != null)
+            {
+                var args = JsonSerializer.Deserialize<Dictionary<string, object?>>(toolCall.FunctionArguments.ToString()) ?? new();
+                var result = await tool.ExecuteAsync(args, userId);
+                _history.Add(new ToolChatMessage(toolCall.Id, result?.ToString() ?? ""));
+            }
+        }
+    }
+
+    private void TrimHistory()
+    {
+        if (_history.Count > AgentPrompts.MaxHistoryCount)
+            _history.RemoveRange(1, 2);
+    }
+
+    #endregion
 }

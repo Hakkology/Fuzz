@@ -67,6 +67,10 @@ public class SchemaAiTool : IAiTool
                 }
             }
         }
+
+        if (sql.Contains("DELETE") && !sql.Contains("WHERE")) 
+            return "Guardrails Alert: DELETE statement must contain a WHERE clause.";
+        
         return null;
     }
 
@@ -150,9 +154,6 @@ public class SchemaAiTool : IAiTool
             await conn.OpenAsync();
 
             using var cmd = new NpgsqlCommand(sql, conn);
-            
-            // Check if it's a SELECT query to decide execution method
-            // Also exclude WITH (CTE) from NonQuery optimization just in case it returns data
             bool isSelect = sql.Trim().ToUpper().StartsWith("SELECT") || sql.Trim().ToUpper().StartsWith("WITH");
 
             if (isSelect)
