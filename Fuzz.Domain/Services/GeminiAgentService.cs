@@ -65,13 +65,18 @@ RULES:
 
             _history.Add(new Content { Role = "user", Parts = new List<Part> { new Part { Text = input } } });
 
+            var parameters = await _configService.GetParametersAsync(configData.Id);
+
             var toolDefinitions = new Tool { FunctionDeclarations = _tools.Select(t => t.GetDefinition()).ToList() };
             var chatConfig = new GenerateContentConfig
             {
                 Tools = new List<Tool> { toolDefinitions },
-                Temperature = 0.1f,
-                MaxOutputTokens = 1024
+                Temperature = parameters != null ? (float)parameters.Temperature : 0.1f,
+                MaxOutputTokens = parameters != null ? parameters.MaxTokens : 1024,
+                TopP = parameters != null ? (float)parameters.TopP : 1.0f
             };
+            
+            // Note: Frequency/Presence penalty not directly supported in GenAI SDK yet
 
             string finalAnswer = "";
             bool continueLoop = true;

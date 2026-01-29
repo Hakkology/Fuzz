@@ -30,4 +30,6 @@ public class FuzzAiConfig
     public bool IsActive { get; set; }
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    public virtual FuzzAiParameters? Parameters { get; set; }
 }

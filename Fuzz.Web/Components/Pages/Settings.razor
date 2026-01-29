@@ -7,6 +7,7 @@
 @inject AuthenticationStateProvider AuthProvider
 @inject ISnackbar Snackbar
 @inject ILogger<Settings> Logger
+@inject IDialogService DialogService
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
     <MudStack Spacing="6">
@@ -148,7 +149,10 @@
                             <MudSwitch T="bool" Value="context.IsActive" ValueChanged="@((bool val) => SetActive(context))" Color="Color.Primary" UnCheckedColor="Color.Default" />
                         </MudTd>
                         <MudTd>
-                            <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" OnClick="@(() => DeleteConfig(context.Id))" Size="Size.Small" />
+                            <MudStack Row="true" Spacing="0">
+                                <MudIconButton Icon="@Icons.Material.Filled.Tune" Color="Color.Info" OnClick="@(() => OpenParametersDialog(context.Id))" Size="Size.Small" />
+                                <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" OnClick="@(() => DeleteConfig(context.Id))" Size="Size.Small" />
+                            </MudStack>
                         </MudTd>
                     </RowTemplate>
                 </MudTable>
@@ -451,5 +455,14 @@
             Logger.LogError(ex, "Failed to delete configuration.");
             Snackbar.Add($"Error: {ex.Message}", Severity.Error);
         }
+    }
+
+    private async Task OpenParametersDialog(int configId)
+    {
+        var parameters = new DialogParameters { ["ConfigId"] = configId };
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        
+        var dialog = DialogService.Show<AiParameterDialog>("AI Generation Parameters", parameters, options);
+        var result = await dialog.Result;
     }
 }

@@ -14,6 +14,7 @@ public class FuzzDbContext : IdentityDbContext<FuzzUser>
     public DbSet<FuzzTodo> Todos { get; set; }
     public DbSet<FuzzAiConfig> AiConfigurations { get; set; }
     public DbSet<FuzzAiModel> FuzzAiModels { get; set; }
+    public DbSet<FuzzAiParameters> FuzzAiParameters { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -21,6 +22,7 @@ public class FuzzDbContext : IdentityDbContext<FuzzUser>
 
         builder.Entity<FuzzAiConfig>().ToTable("FuzzAIConfigs");
         builder.Entity<FuzzAiModel>().ToTable("FuzzAiModels");
+        builder.Entity<FuzzAiParameters>().ToTable("FuzzAIParameters");
         
         builder.Entity<FuzzUser>().ToTable("FuzzUsers");
         builder.Entity<IdentityRole>().ToTable("FuzzRoles");

@@ -1,0 +1,78 @@
+@using Fuzz.Domain.Entities
+@using Fuzz.Domain.Services
+@using MudBlazor
+@inject IAiConfigService ConfigService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudSlider @bind-Value="_parameters.Temperature" Min="0" Max="2" Step="0.1" Color="Color.Primary">
+                    Temperature: @_parameters.Temperature.ToString("0.0")
+                </MudSlider>
+                <MudText Typo="Typo.caption">Controls randomness: Lower is more deterministic, higher is more creative.</MudText>
+            </MudItem>
+            
+            <MudItem xs="12">
+                <MudNumericField @bind-Value="_parameters.MaxTokens" Label="Max Tokens" Min="1" Max="128000" Variant="Variant.Outlined" />
+                <MudText Typo="Typo.caption">The maximum number of tokens to generate in the completion.</MudText>
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudSlider @bind-Value="_parameters.TopP" Min="0" Max="1" Step="0.01" Color="Color.Secondary">
+                    Top P: @_parameters.TopP.ToString("0.00")
+                </MudSlider>
+                <MudText Typo="Typo.caption">Nucleus sampling: The model considers the results of the tokens with top_p probability mass.</MudText>
+            </MudItem>
+
+            <MudItem xs="6">
+                <MudNumericField @bind-Value="_parameters.FrequencyPenalty" Label="Frequency Penalty" Min="-2.0" Max="2.0" Step="0.1" Variant="Variant.Outlined" />
+            </MudItem>
+            
+            <MudItem xs="6">
+                <MudNumericField @bind-Value="_parameters.PresencePenalty" Label="Presence Penalty" Min="-2.0" Max="2.0" Step="0.1" Variant="Variant.Outlined" />
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Save">Save Changes</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public int ConfigId { get; set; }
+    
+    private FuzzAiParameters _parameters = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var existing = await ConfigService.GetParametersAsync(ConfigId);
+        if (existing != null)
+        {
+            _parameters = existing;
+        }
+        else
+        {
+            _parameters = new FuzzAiParameters { FuzzAiConfigId = ConfigId };
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
+    {
+        try
+        {
+            await ConfigService.SaveParametersAsync(_parameters);
+            Snackbar.Add("Parameters saved successfully", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving parameters: {ex.Message}", Severity.Error);
+        }
+    }
+}
