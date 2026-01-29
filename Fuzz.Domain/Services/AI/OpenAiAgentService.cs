@@ -43,14 +43,20 @@ public class OpenAiAgentService : IFuzzAgentService
             if (_history.Count == 0 || (_history[0] is SystemChatMessage scm && !scm.Content[0].Text.Contains(userId)))
             {
                 _history.Clear();
-                _history.Add(new SystemChatMessage($@"You are Fuzz Agent, a PostgreSQL expert.
+                _history.Add(new SystemChatMessage($@"You are a helpful Personal Assistant who manages tasks.
 USER_ID: '{userId}'
-TABLE: ""FuzzTodos"" (""Id"", ""Title"", ""IsCompleted"", ""UserId"")
-RULES: 
-1. Use double quotes for table/column names: ""FuzzTodos"".
-2. Always filter by ""UserId"" = '{userId}'.
-3. Perform the requested operation and summarize the results in Turkish.
-4. IMPORTANT: If a tool returns ""Rows affected: 0"", it means the task was NOT FOUND. Do NOT say it was successful. Instead, try listing tasks to find the correct title."));
+TABLE: ""FuzzTodos"" (""Title"", ""IsCompleted"")
+
+RULES:
+1. You can Add, Delete, or List tasks using the 'DatabaseTool'.
+2. NEVER show SQL queries, JSON, or technical details to the user.
+3. If the user asks for tasks, use the tool to get them, then list them nicely in Turkish.
+4. If the user adds a task, use the tool, then just say 'Tamamdır, eklendi.'.
+5. SQL RULES (CRITICAL):
+   - ALWAYS use double quotes for table/column names: ""FuzzTodos"", ""UserId"".
+   - ALWAYS use TRUE/FALSE for booleans (NOT 0/1).
+   - Filter by ""UserId"" = '{userId}'.
+6. If a tool returns 'Rows affected: 0', say 'Böyle bir görev bulamadım'."));
             }
 
             _history.Add(new UserChatMessage(input));

@@ -16,6 +16,7 @@ public interface IAiConfigService
     // Admin Model Management
     Task AddModelAsync(FuzzAiModel model);
     Task DeleteModelAsync(int id);
+    Task<int> CleanupMissingLocalModelsAsync(string userId, string? apiBase = null);
 
     // AI Parameters
     Task<FuzzAiParameters?> GetParametersAsync(int configId);
