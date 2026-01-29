@@ -13,87 +13,187 @@
 <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
     <MudPaper Elevation="0" Class="sound-container">
         
-        @* Header *@
+        @* Header with gradient accent *@
         <div class="sound-header">
-            <MudAvatar Color="Color.Tertiary" Size="Size.Medium">
-                <MudIcon Icon="@Icons.Material.Filled.MusicNote" />
-            </MudAvatar>
+            <div class="header-icon-wrapper">
+                <MudIcon Icon="@Icons.Material.Filled.MusicNote" Size="Size.Large" />
+            </div>
             <div class="sound-header-text">
-                <MudText Typo="Typo.h6">Fuzz Sound AI</MudText>
-                <MudText Typo="Typo.caption" Style="color: #B0B0B0;">@(_activeProvider == AiProvider.ElevenLabs ? "ElevenLabs Vocal Studio" : "Local Music Composer")</MudText>
+                <MudText Typo="Typo.h5" Style="font-weight: 600;">Fuzz Sound AI</MudText>
+                <MudText Typo="Typo.caption" Class="provider-label">
+                    <MudIcon Icon="@(_activeProvider == AiProvider.ElevenLabs ? Icons.Material.Filled.RecordVoiceOver : Icons.Material.Filled.Piano)" 
+                             Size="Size.Small" Style="margin-right: 4px; vertical-align: middle;" />
+                    @(_activeProvider == AiProvider.ElevenLabs ? "ElevenLabs Vocal Studio" : "Local Music Composer")
+                </MudText>
             </div>
             
             <MudSpacer />
             
-            <MudChip T="string" Color="@(_hasActiveConfig ? Color.Success : Color.Error)" Size="Size.Small" Variant="Variant.Filled">
-                @(_hasActiveConfig ? $"{_activeProvider} Ready" : "Unconfigured")
+            <MudChip T="string" 
+                     Color="@(_hasActiveConfig ? Color.Success : Color.Error)" 
+                     Size="Size.Small" 
+                     Variant="Variant.Filled"
+                     Class="status-chip">
+                <MudIcon Icon="@(_hasActiveConfig ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Error)" 
+                         Size="Size.Small" Style="margin-right: 4px;" />
+                @(_hasActiveConfig ? "Ready" : "Setup Required")
             </MudChip>
         </div>
 
         @* Result Area *@
         @if (!string.IsNullOrEmpty(_responseContent))
         {
-            @if (_isAudioData)
-            {
-                <MudPaper Elevation="0" Class="pa-6 d-flex flex-column align-center" Style="background: rgba(255,255,255,0.05); border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);">
-                    <MudIcon Icon="@Icons.Material.Filled.RecordVoiceOver" Size="Size.Large" Color="Color.Tertiary" Class="mb-3" />
-                    <audio controls src="@_responseContent" style="width: 100%; border-radius: 30px;"></audio>
-                    <MudText Typo="Typo.caption" Class="mt-3" Color="Color.Secondary">Audio generated successfully</MudText>
-                </MudPaper>
-            }
-            else
-            {
-                <MudPaper id="sheet-music" Elevation="0" Class="sheet-music-area pa-4" Style="background: white; min-height: 200px;">
-                    @* ABCJS will render SVG here *@
-                </MudPaper>
+            <div class="result-area @(_isPlaying ? "is-playing" : "")">
+                @if (_isAudioData)
+                {
+                    <div class="voice-result">
+                        <div class="voice-visualizer">
+                            <MudIcon Icon="@Icons.Material.Filled.GraphicEq" Size="Size.Large" Color="Color.Tertiary" />
+                        </div>
+                        <audio controls src="@_responseContent" style="width: 100%; max-width: 400px; border-radius: 30px;"></audio>
+                        <MudText Typo="Typo.caption" Class="mt-2" Style="color: var(--mud-palette-text-secondary);">
+                            Voice generated successfully
+                        </MudText>
+                    </div>
+                }
+                else
+                {
+                    @* Sheet Music Display *@
+                    <div class="sheet-music-wrapper">
+                        <div id="sheet-music" class="sheet-music-area"></div>
+                    </div>
 
-                <MudPaper Elevation="0" Class="audio-controls pa-2 mt-2" Style="background: rgba(0,0,0,0.2);">
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-                        <MudStack Row="true">
-                            <MudIconButton Icon="@Icons.Material.Filled.PlayArrow" Color="Color.Success" OnClick="PlayAudio" Disabled="@(!_audioReady)" />
-                            <MudIconButton Icon="@Icons.Material.Filled.Stop" Color="Color.Error" OnClick="StopAudio" Disabled="@(!_audioReady)" />
-                            @if (_audioReady)
-                            {
-                               <MudText Typo="Typo.caption" Class="mt-2">Audio Synth Ready</MudText>
-                            }
-                            else
-                            {
-                               <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="ml-2" />
-                               <MudText Typo="Typo.caption" Class="mt-2 ml-1">Loading Synth...</MudText>
-                            }
-                        </MudStack>
+                    @* Audio Controls *@
+                    <div class="audio-controls">
+                        <div class="controls-left">
+                            <MudButton Variant="Variant.Filled" 
+                                       Color="@(_isPlaying ? Color.Warning : Color.Success)"
+                                       StartIcon="@(_isPlaying ? Icons.Material.Filled.Pause : Icons.Material.Filled.PlayArrow)"
+                                       OnClick="@(_isPlaying ? StopAudio : PlayAudio)"
+                                       Disabled="@(!_audioReady)"
+                                       Class="play-button">
+                                @(_isPlaying ? "Pause" : "Play")
+                            </MudButton>
+                            
+                            <MudButton Variant="Variant.Outlined" 
+                                       Color="Color.Default"
+                                       StartIcon="@Icons.Material.Filled.Stop"
+                                       OnClick="StopAudio"
+                                       Disabled="@(!_audioReady || !_isPlaying)"
+                                       Size="Size.Small">
+                                Stop
+                            </MudButton>
+                        </div>
+                        
+                        <div class="controls-right">
+                            <a id="midi-download-link" class="midi-download-btn" style="display: @(_midiReady ? "inline-flex" : "none")">
+                                <MudIcon Icon="@Icons.Material.Filled.Download" Size="Size.Small" />
+                                <span>MIDI</span>
+                            </a>
+                            
+                            <MudChip T="string" 
+                                     Size="Size.Small" 
+                                     Color="@(_audioReady ? Color.Success : Color.Default)"
+                                     Variant="Variant.Text"
+                                     Class="synth-status">
+                                @if (_audioReady)
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.VolumeUp" Size="Size.Small" Style="margin-right: 4px;" />
+                                    <span>Synth Ready</span>
+                                }
+                                else
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Style="width: 16px; height: 16px; margin-right: 8px;" />
+                                    <span>Loading...</span>
+                                }
+                            </MudChip>
+                        </div>
+                    </div>
 
-                        <a id="midi-download-link" style="display:none;" class="mud-button-root mud-button mud-button-filled mud-button-filled-primary mud-button-filled-size-small mud-ripple">
-                            <MudIcon Icon="@Icons.Material.Filled.Download" Size="Size.Small" Class="mr-1"/> Download MIDI
-                        </a>
-                    </MudStack>
-                </MudPaper>
+                    @* ABC Notation Panel *@
+                    <MudExpansionPanels Elevation="0" Class="notation-panel">
+                        <MudExpansionPanel Text="View ABC Notation" MaxHeight="200">
+                            <pre class="abc-code">@_responseContent</pre>
+                        </MudExpansionPanel>
+                    </MudExpansionPanels>
+                }
+            </div>
+        }
+        else if (!_isProcessing)
+        {
+            @* Empty State *@
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <MudIcon Icon="@Icons.Material.Filled.QueueMusic" Size="Size.Large" />
+                </div>
+                <MudText Typo="Typo.h6" Style="margin-bottom: 8px;">Create Your Music</MudText>
+                <MudText Typo="Typo.body2" Style="color: var(--mud-palette-text-secondary); text-align: center;">
+                    Describe the melody you want to create. Try something like<br/>
+                    <em>"a happy tavern tune"</em> or <em>"calm piano melody"</em>
+                </MudText>
+            </div>
+        }
 
-                <MudExpansionPanels Elevation="0" Class="mt-2">
-                    <MudExpansionPanel Text="Show ABC Notation">
-                        <pre style="color: grey; font-size: 0.8em; white-space: pre-wrap;">@_responseContent</pre>
-                    </MudExpansionPanel>
-                </MudExpansionPanels>
-            }
+        @* Loading State *@
+        @if (_isProcessing)
+        {
+            <div class="loading-state">
+                <div class="loading-animation">
+                    <MudProgressCircular Color="Color.Tertiary" Indeterminate="true" Size="Size.Large" />
+                </div>
+                <MudText Typo="Typo.subtitle1" Class="mt-3">Composing your melody...</MudText>
+                <MudText Typo="Typo.caption" Style="color: var(--mud-palette-text-secondary);">This may take a few seconds</MudText>
+            </div>
+        }
+
+        @* Instrument Selector *@
+        @if (_activeProvider == AiProvider.Local)
+        {
+            <div class="instrument-selector">
+                <MudText Typo="Typo.caption" Class="selector-label">Instrument</MudText>
+                <MudButtonGroup OverrideStyles="false" Class="instrument-buttons">
+                    @foreach (var inst in _instruments)
+                    {
+                        <MudButton Variant="@(_selectedInstrument == inst.Program ? Variant.Filled : Variant.Outlined)"
+                                   Color="@(_selectedInstrument == inst.Program ? Color.Tertiary : Color.Default)"
+                                   Size="Size.Small"
+                                   OnClick="@(() => _selectedInstrument = inst.Program)"
+                                   Class="instrument-btn">
+                            <span class="inst-icon">@inst.Icon</span>
+                            <span class="inst-name">@inst.Name</span>
+                        </MudButton>
+                    }
+                </MudButtonGroup>
+            </div>
         }
 
         @* Input Area *@
-        <div class="sound-input-area mt-4">
-             <MudTextField @bind-Value="_prompt" 
-                          Placeholder="@(_activeProvider == AiProvider.ElevenLabs ? "Type text to speak..." : "Describe the melody...")" 
+        <div class="sound-input-area @(_isProcessing ? "is-disabled" : "")">
+            <MudTextField @bind-Value="_prompt" 
+                          Placeholder="@(_activeProvider == AiProvider.ElevenLabs ? "Type text to speak..." : "Describe your melody... (Ctrl+Enter to send)")" 
                           Variant="Variant.Outlined" 
                           Margin="Margin.Dense" 
                           OnKeyDown="@HandleKeyDown"
                           Disabled="@(_isProcessing || !_hasActiveConfig)"
                           Immediate="true"
                           FullWidth="true"
-                          Lines="2">
+                          Lines="2"
+                          Class="prompt-input">
             </MudTextField>
-             <MudIconButton Icon="@(_isProcessing ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.Send)" 
-                           Color="Color.Tertiary" 
-                           Variant="Variant.Filled"
-                           OnClick="GenerateMusic" 
-                           Disabled="@(string.IsNullOrWhiteSpace(_prompt) || !_hasActiveConfig || _isProcessing)" />
+            <MudButton Variant="Variant.Filled" 
+                       Color="Color.Tertiary" 
+                       OnClick="GenerateMusic" 
+                       Disabled="@(string.IsNullOrWhiteSpace(_prompt) || !_hasActiveConfig || _isProcessing)"
+                       Class="send-button">
+                @if (_isProcessing)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Style="width: 24px; height: 24px;" />
+                }
+                else
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.AutoAwesome" />
+                }
+            </MudButton>
         </div>
 
     </MudPaper>
@@ -101,42 +201,304 @@
 
 <style>
     .sound-container {
-        background: rgba(26, 26, 46, 0.7) !important;
-        backdrop-filter: blur(16px);
-        border: 1px solid rgba(255, 105, 180, 0.2); 
-        border-radius: 20px !important;
+        background: linear-gradient(145deg, rgba(26, 26, 46, 0.9) 0%, rgba(22, 22, 38, 0.95) 100%) !important;
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 105, 180, 0.15);
+        border-radius: 24px !important;
         display: flex;
         flex-direction: column;
-        gap: 16px;
-        padding: 24px;
+        gap: 20px;
+        padding: 28px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 60px rgba(255, 105, 180, 0.05);
     }
     
     .sound-header {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding-bottom: 16px;
-        border-bottom: 1px solid rgba(255, 105, 180, 0.15);
+        gap: 16px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
-
-    .sound-input-area {
+    
+    .header-icon-wrapper {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #FF69B4 0%, #9B59B6 100%);
         display: flex;
-        gap: 8px;
         align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 15px rgba(255, 105, 180, 0.3);
+    }
+    
+    .header-icon-wrapper .mud-icon-root {
+        color: white !important;
+    }
+    
+    .provider-label {
+        color: rgba(255, 255, 255, 0.5);
+        display: flex;
+        align-items: center;
+        margin-top: 2px;
+    }
+    
+    .status-chip {
+        font-weight: 500;
+        letter-spacing: 0.5px;
     }
 
+    /* Empty State */
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 48px 24px;
+        text-align: center;
+    }
+    
+    .empty-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: rgba(255, 105, 180, 0.1);
+        border: 2px dashed rgba(255, 105, 180, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+    }
+    
+    .empty-icon .mud-icon-root {
+        color: rgba(255, 105, 180, 0.6);
+    }
+
+    /* Loading State */
+    .loading-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 48px 24px;
+    }
+    
+    .loading-animation {
+        position: relative;
+    }
+    
+    .loading-animation::before {
+        content: '';
+        position: absolute;
+        inset: -10px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255, 105, 180, 0.2) 0%, transparent 70%);
+        animation: pulse 2s ease-in-out infinite;
+    }
+    
+    @@keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 0.5; }
+        50% { transform: scale(1.2); opacity: 0.8; }
+    }
+
+    /* Result Area */
+    .result-area {
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+    
+    .result-area.is-playing {
+        border-color: rgba(76, 175, 80, 0.3);
+        box-shadow: 0 0 20px rgba(76, 175, 80, 0.1);
+    }
+
+    /* Voice Result */
+    .voice-result {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 32px;
+    }
+    
+    .voice-visualizer {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, rgba(255, 105, 180, 0.2) 0%, rgba(155, 89, 182, 0.2) 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+    }
+
+    /* Sheet Music */
+    .sheet-music-wrapper {
+        background: linear-gradient(180deg, #fefefe 0%, #f8f8f8 100%);
+        padding: 24px;
+        border-radius: 12px 12px 0 0;
+    }
+    
+    .sheet-music-area {
+        min-height: 180px;
+    }
+    
     #sheet-music svg {
         width: 100%;
         height: auto;
     }
+
+    /* Audio Controls */
+    .audio-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 20px;
+        background: rgba(0, 0, 0, 0.3);
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .controls-left, .controls-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .play-button {
+        min-width: 100px;
+    }
+    
+    .midi-download-btn {
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        color: white;
+        text-decoration: none;
+        font-size: 0.85rem;
+        transition: all 0.2s ease;
+    }
+    
+    .midi-download-btn:hover {
+        background: rgba(255, 255, 255, 0.15);
+    }
+    
+    .synth-status {
+        font-size: 0.75rem;
+    }
+
+    /* Notation Panel */
+    .notation-panel {
+        margin: 0 !important;
+    }
+    
+    .notation-panel .mud-expand-panel {
+        background: rgba(0, 0, 0, 0.2) !important;
+        border-radius: 0 0 12px 12px !important;
+    }
+    
+    .abc-code {
+        color: #aaa;
+        font-size: 0.75rem;
+        white-space: pre-wrap;
+        font-family: 'Monaco', 'Consolas', monospace;
+        margin: 0;
+        padding: 12px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 8px;
+    }
+
+    /* Input Area */
+    .sound-input-area {
+        display: flex;
+        gap: 12px;
+        align-items: flex-end;
+        padding-top: 8px;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        transition: opacity 0.3s ease;
+    }
+    
+    .sound-input-area.is-disabled {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+    
+    .prompt-input {
+        flex: 1;
+    }
+    
+    .send-button {
+        min-width: 56px;
+        height: 56px;
+        border-radius: 16px !important;
+        padding: 0 !important;
+    }
+    
+    .send-button .mud-icon-root {
+        font-size: 1.5rem;
+    }
+
+    /* Instrument Selector */
+    .instrument-selector {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .selector-label {
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .instrument-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .instrument-btn {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 8px 12px !important;
+        min-width: 70px !important;
+    }
+    
+    .inst-icon {
+        font-size: 1.2rem;
+    }
+    
+    .inst-name {
+        font-size: 0.7rem;
+        text-transform: none;
+    }
 </style>
 
 @code {
+    private record InstrumentInfo(string Name, string Icon, int Program);
+    
+    private readonly List<InstrumentInfo> _instruments = new()
+    {
+        new("Piano", "🎹", 0),
+        new("Guitar", "🎸", 24),
+        new("Violin", "🎻", 40),
+        new("Flute", "🪈", 73),
+        new("Organ", "🎵", 19),
+        new("Trumpet", "🎺", 56)
+    };
+    
+    private int _selectedInstrument = 0; // Piano default
     private string _prompt = "";
     private string _responseContent = "";
     private bool _isProcessing = false;
     private bool _audioReady = false;
     private bool _isAudioData = false;
+    private bool _isPlaying = false;
+    private bool _midiReady = false;
     private bool _hasActiveConfig = false;
     private AiProvider? _activeProvider;
     private string _userId = "";
@@ -151,7 +513,6 @@
 
     private async Task LoadActiveConfig()
     {
-        // Check for any active sound provider
         var configs = await ConfigService.GetUserConfigsAsync(_userId);
         var activeConfig = configs.FirstOrDefault(c => c.IsActive && c.Mode == AiCapabilities.Sound);
         
@@ -173,12 +534,13 @@
         _isProcessing = true;
         _audioReady = false;
         _isAudioData = false;
+        _isPlaying = false;
+        _midiReady = false;
         _responseContent = "";
         StateHasChanged();
 
         try
         {
-            // Resolve correct service
             ISoundAgentService? service = null;
             if (_activeProvider == AiProvider.Local)
                 service = SoundServices.OfType<LocalSoundService>().FirstOrDefault();
@@ -193,21 +555,20 @@
 
             var result = await service.GenerateMusicAsync(_prompt, _userId);
             _responseContent = result.Answer;
-            
-            // Detect type
             _isAudioData = _responseContent.StartsWith("data:audio");
             
             StateHasChanged();
             
             if (!_isAudioData && !string.IsNullOrEmpty(_responseContent))
             {
-                // Render ABC and init audio
-                await Task.Delay(200); 
-                _audioReady = await JSRuntime.InvokeAsync<bool>("soundInterop.renderAbc", "sheet-music", "audio-controls", _responseContent);
+                await Task.Delay(200);
+                _audioReady = await JSRuntime.InvokeAsync<bool>("soundInterop.renderAbc", "sheet-music", "audio-controls", _responseContent, _selectedInstrument);
                 
-                if(_audioReady) {
-                     await JSRuntime.InvokeVoidAsync("soundInterop.createMidiDownload", _responseContent, "midi-download-link");
+                if (_audioReady) {
+                    await JSRuntime.InvokeVoidAsync("soundInterop.createMidiDownload", _responseContent, "midi-download-link", _selectedInstrument);
+                    _midiReady = true;
                 }
+                StateHasChanged();
             }
         }
         catch (Exception ex)
@@ -223,14 +584,18 @@
     private async Task PlayAudio()
     {
         if (_audioReady)
+        {
             await JSRuntime.InvokeVoidAsync("soundInterop.playAudio");
+            _isPlaying = true;
+        }
     }
 
     private async Task StopAudio()
     {
         if (_audioReady)
+        {
             await JSRuntime.InvokeVoidAsync("soundInterop.stopAudio");
+            _isPlaying = false;
+        }
     }
 }
-
-
