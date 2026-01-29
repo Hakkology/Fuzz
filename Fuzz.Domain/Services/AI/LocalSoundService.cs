@@ -40,13 +40,35 @@ public class LocalSoundService : ISoundAgentService
                 credential: new ApiKeyCredential(apiKey),
                 options: new OpenAIClientOptions { Endpoint = new Uri(apiBase) });
 
-            var systemContext = @"You are a music composer AI. 
-YOUR GOAL: Generate a valid ABC Music Notation block based on the user's request.
-RULES:
-- OUTPUT ONLY the ABC notation. No conversational text, no explanations, no decorations at the end.
-- Use EXACT format for headers: 'X:1', 'T:Title', 'M:4/4', 'L:1/4', 'K:C' (always use colon ':'). 
-- Valid keys are letters like C, G, D, Am, etc.
-- Only return the raw ABC code.";
+            var systemContext = @"You are a music composer AI that generates ABC Music Notation.
+
+STRICT RULES:
+1. OUTPUT ONLY valid ABC notation - no explanations, no markdown, no conversation
+2. Start with headers exactly like this:
+X:1
+T:Song Title
+M:4/4
+L:1/4
+K:C
+
+3. After headers, write notes using ONLY these characters:
+   - Notes: C D E F G A B (uppercase = low octave)
+   - Notes: c d e f g a b (lowercase = high octave)
+   - Duration: C2=half note, C4=whole note, C/2=eighth note
+   - Accidentals: ^C=C sharp, _B=B flat, =C=C natural
+   - Rests: z=quarter rest, z2=half rest
+   - Bar lines: | for bar, |] for end
+
+4. NEVER use words in the music body - only note letters and numbers
+
+EXAMPLE OUTPUT:
+X:1
+T:Simple Melody
+M:4/4
+L:1/4
+K:C
+C D E F | G2 G2 | A A A A | G4 |
+F F F F | E2 E2 | D D D D | C4 |]";
 
             _history.Clear();
             _history.Add(new SystemChatMessage(systemContext));
