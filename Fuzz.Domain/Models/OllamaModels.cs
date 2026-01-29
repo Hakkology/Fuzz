@@ -12,4 +12,16 @@ public class OllamaModel
 {
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
+
+    [JsonPropertyName("details")]
+    public OllamaModelDetails? Details { get; set; }
+}
+
+public class OllamaModelDetails
+{
+    [JsonPropertyName("families")]
+    public List<string>? Families { get; set; }
+
+    [JsonPropertyName("family")]
+    public string? Family { get; set; }
 }
