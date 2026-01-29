@@ -7,8 +7,6 @@ using Fuzz.Web.Components.Account;
 using Fuzz.Domain.Data;
 using Fuzz.Domain.Entities;
 using Fuzz.Domain.Services;
-using Fuzz.Domain.Ai;
-using Fuzz.Domain.Ai.Tools;
 using MudBlazor.Services;
 using Fuzz.Domain.Services.Interfaces;
 using Fuzz.Domain.Services.Tools;
@@ -52,9 +50,9 @@ builder.Services.AddIdentityCore<FuzzUser>(options =>
 builder.Services.AddSingleton<IEmailSender<FuzzUser>, IdentityNoOpEmailSender>();
 
 // Domain Services
-builder.Services.AddScoped<IAiTool, SqlAiTool>();
 builder.Services.AddScoped<IAiTool, TimeAiTool>();
 builder.Services.AddScoped<IAiTool, WebScraperAiTool>();
+builder.Services.AddScoped<IAiTool, SchemaAiTool>();
 
 // AI Services
 builder.Services.AddScoped<IAiConfigService, AiConfigService>();

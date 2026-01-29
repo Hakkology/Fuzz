@@ -1,7 +1,7 @@
-using Fuzz.Domain.Ai;
 using Fuzz.Domain.Entities;
 using Fuzz.Domain.Models;
 using Fuzz.Domain.Services.Interfaces;
+using Fuzz.Domain.Services.Tools;
 using Microsoft.Extensions.Logging;
 using OpenAI;
 using OpenAI.Chat;
@@ -17,7 +17,7 @@ public class LocalAgentService : IFuzzAgentService
     private readonly IEnumerable<IAiTool> _tools;
     private readonly List<ChatMessage> _history = new();
 
-    public string? LastSql => _tools.OfType<Ai.Tools.SqlAiTool>().FirstOrDefault()?.LastQuery;
+    public string? LastSql => _tools.OfType<SchemaAiTool>().FirstOrDefault()?.LastQuery;
 
     public LocalAgentService(
         IAiConfigService configService, 

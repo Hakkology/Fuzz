@@ -1,10 +1,10 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Fuzz.Domain.Data;
 using Fuzz.Domain.Entities;
 using Fuzz.Domain.Models;
-using System.Net.Http.Json;
 using Fuzz.Domain.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using System.Net.Http.Json;
 
 namespace Fuzz.Domain.Services;
 
