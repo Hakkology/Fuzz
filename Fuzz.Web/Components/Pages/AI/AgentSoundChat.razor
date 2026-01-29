@@ -21,9 +21,8 @@
             <div class="sound-header-text">
                 <MudText Typo="Typo.h5" Style="font-weight: 600;">Fuzz Sound AI</MudText>
                 <MudText Typo="Typo.caption" Class="provider-label">
-                    <MudIcon Icon="@(_activeProvider == AiProvider.ElevenLabs ? Icons.Material.Filled.RecordVoiceOver : Icons.Material.Filled.Piano)" 
-                             Size="Size.Small" Style="margin-right: 4px; vertical-align: middle;" />
-                    @(_activeProvider == AiProvider.ElevenLabs ? "ElevenLabs Vocal Studio" : "Local Music Composer")
+                    <MudIcon Icon="@GetProviderIcon()" Size="Size.Small" Style="margin-right: 4px; vertical-align: middle;" />
+                    @GetProviderLabel()
                 </MudText>
             </div>
             
@@ -546,6 +545,8 @@
                 service = SoundServices.OfType<LocalSoundService>().FirstOrDefault();
             else if (_activeProvider == AiProvider.ElevenLabs)
                 service = SoundServices.OfType<ElevenLabsSoundService>().FirstOrDefault();
+            else if (_activeProvider == AiProvider.Replicate)
+                service = SoundServices.OfType<ReplicateSoundService>().FirstOrDefault();
             
             if (service == null)
             {
@@ -598,4 +599,20 @@
             _isPlaying = false;
         }
     }
+
+    private bool IsLocalProvider => _activeProvider == AiProvider.Local;
+
+    private string GetProviderIcon() => _activeProvider switch
+    {
+        AiProvider.ElevenLabs => Icons.Material.Filled.RecordVoiceOver,
+        AiProvider.Replicate => Icons.Material.Filled.Audiotrack,
+        _ => Icons.Material.Filled.Piano
+    };
+
+    private string GetProviderLabel() => _activeProvider switch
+    {
+        AiProvider.ElevenLabs => "ElevenLabs Vocal Studio",
+        AiProvider.Replicate => "MusicGen",
+        _ => "Local Music Composer"
+    };
 }

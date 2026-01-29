@@ -70,6 +70,7 @@ builder.Services.AddScoped<IVisualAgentService, LocalVisualService>();
 // Sound AI Services
 builder.Services.AddScoped<ISoundAgentService, LocalSoundService>();
 builder.Services.AddScoped<ISoundAgentService, ElevenLabsSoundService>();
+builder.Services.AddScoped<ISoundAgentService, ReplicateSoundService>();
 
 builder.Services.AddScoped<IFuzzSeedService, FuzzSeedService>();
 
