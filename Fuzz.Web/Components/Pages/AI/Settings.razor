@@ -307,6 +307,13 @@
 
         if (index == 1)
         {
+            // Cleanup any configs for models no longer in Ollama
+            var deleted = await ConfigService.CleanupMissingLocalModelsAsync(_userId, _newConfig.ApiBase);
+            if (deleted > 0)
+            {
+                Snackbar.Add($"{deleted} outdated configuration(s) removed.", Severity.Info);
+                await LoadConfigs();
+            }
             await RefreshLocalModels();
         }
     }

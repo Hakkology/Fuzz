@@ -34,7 +34,7 @@ public class SchemaAiTool : IAiTool
                         new Schema
                         {
                             Type = Google.GenAI.Types.Type.STRING,
-                            Description = "Optional. A raw SQL query to execute. MUST include \"UserId\" filter. allowed: SELECT, INSERT, UPDATE, DELETE. forbidden: DROP, ALTER, TRUNCATE."
+                            Description = "SQL query. SYNTAX: Double quotes for names (\"Table\"), SINGLE quotes for values ('text'). Example: SELECT * FROM \"FuzzTodos\" WHERE \"UserId\" = 'user-id-here'"
                         }
                     },
                     {
@@ -82,7 +82,7 @@ public class SchemaAiTool : IAiTool
 
         if (args.TryGetValue("sql", out var sqlObj) && sqlObj != null)
         {
-            return await ExecuteSqlAsync(sqlObj.ToString() ?? "");
+            return await ExecuteSqlAsync(sqlObj.ToString() ?? "", userId);
         }
 
         return "Error: Please provide either 'sql' to execute a query OR 'get_schema' to view the database structure.";
@@ -141,7 +141,7 @@ public class SchemaAiTool : IAiTool
         }
     }
 
-    private async Task<object> ExecuteSqlAsync(string sql)
+    private async Task<object> ExecuteSqlAsync(string sql, string userId)
     {
         LastQuery = sql;
         try
@@ -170,7 +170,7 @@ public class SchemaAiTool : IAiTool
                     results.Add(row);
                 }
 
-                if (results.Count == 0) return "No records found.";
+                if (results.Count == 0) return $"No records found. DEBUG INFO: Conn='{_connectionString}', User='{userId}', SQL='{sql}'";
 
                 return JsonSerializer.Serialize(results);
             }

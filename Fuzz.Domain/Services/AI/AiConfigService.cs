@@ -14,6 +14,9 @@ public class AiConfigService : IAiConfigService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<AiConfigService> _logger;
 
+    private const string DefaultOllamaUrl = "http://localhost:11434";
+    private const int OllamaTimeoutSeconds = 3;
+
     public AiConfigService(
         IDbContextFactory<FuzzDbContext> dbFactory, 
         IHttpClientFactory httpClientFactory,
@@ -23,6 +26,36 @@ public class AiConfigService : IAiConfigService
         _httpClientFactory = httpClientFactory;
         _logger = logger;
     }
+
+    #region Helper Methods
+
+    private static string NormalizeOllamaUrl(string? apiBase)
+    {
+        var url = string.IsNullOrWhiteSpace(apiBase) ? DefaultOllamaUrl : apiBase.TrimEnd('/');
+        return url.EndsWith("/v1") ? url[..^3] : url;
+    }
+
+    private async Task<HashSet<string>?> FetchOllamaModelIdsAsync(string? apiBase)
+    {
+        try
+        {
+            var baseUrl = NormalizeOllamaUrl(apiBase);
+            using var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(OllamaTimeoutSeconds);
+
+            var response = await client.GetFromJsonAsync<OllamaTagsResponse>($"{baseUrl}/api/tags");
+            return response?.Models?.Select(m => m.Name.ToLower().Trim()).ToHashSet();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("Failed to fetch Ollama models: {Message}", ex.Message);
+            return null;
+        }
+    }
+
+    #endregion
+
+    #region Configuration Methods
 
     public async Task<FuzzAiConfig?> GetActiveConfigAsync(string userId, AiProvider provider)
     {
@@ -39,67 +72,6 @@ public class AiConfigService : IAiConfigService
             .OrderByDescending(c => c.IsActive)
             .ThenBy(c => c.Provider)
             .ToListAsync();
-    }
-
-    public async Task<List<FuzzAiModel>> GetModelsAsync(AiProvider? provider = null)
-    {
-        using var db = await _dbFactory.CreateDbContextAsync();
-        var query = db.FuzzAiModels.AsQueryable();
-        if (provider.HasValue)
-        {
-            query = query.Where(m => m.Provider == provider.Value);
-        }
-        return await query.OrderBy(m => m.DisplayName).ToListAsync();
-    }
-
-    public async Task<List<FuzzAiModel>> GetLocalModelsAsync(string? apiBase = null)
-    {
-        var localModels = new List<FuzzAiModel>();
-        try
-        {
-            var baseUrl = string.IsNullOrWhiteSpace(apiBase) ? "http://localhost:11434" : apiBase.TrimEnd('/');
-            if (baseUrl.EndsWith("/v1")) baseUrl = baseUrl.Substring(0, baseUrl.Length - 3);
-
-            using var client = _httpClientFactory.CreateClient();
-            client.Timeout = TimeSpan.FromSeconds(3);
-            
-            var response = await client.GetFromJsonAsync<OllamaTagsResponse>($"{baseUrl}/api/tags");
-            if (response?.Models != null)
-            {
-                using var db = await _dbFactory.CreateDbContextAsync();
-                var existingModelIds = await db.FuzzAiModels
-                    .Where(m => m.Provider == AiProvider.Local)
-                    .Select(m => m.ModelId.ToLower().Trim())
-                    .ToListAsync();
-
-                var processedModels = new HashSet<string>();
-
-                foreach (var model in response.Models)
-                {
-                    var cleanId = model.Name.ToLower().Trim();
-                    
-                    if (processedModels.Contains(cleanId) || existingModelIds.Contains(cleanId))
-                        continue;
-
-                    var modelEntity = new FuzzAiModel 
-                    { 
-                        Provider = AiProvider.Local, 
-                        ModelId = model.Name, 
-                        DisplayName = $"{model.Name} (Local)",
-                        IsCustom = true
-                    };
-                    localModels.Add(modelEntity);
-                    db.FuzzAiModels.Add(modelEntity);
-                    processedModels.Add(cleanId);
-                }
-                await db.SaveChangesAsync();
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning("Failed to fetch or save Ollama models: {Message}", ex.Message);
-        }
-        return localModels;
     }
 
     public async Task AddConfigAsync(FuzzAiConfig config)
@@ -123,19 +95,65 @@ public class AiConfigService : IAiConfigService
     public async Task SetActiveConfigAsync(int id, string userId)
     {
         using var db = await _dbFactory.CreateDbContextAsync();
-        var all = await db.AiConfigurations.Where(c => c.UserId == userId).ToListAsync();
-        foreach (var config in all)
+        var configs = await db.AiConfigurations.Where(c => c.UserId == userId).ToListAsync();
+        configs.ForEach(c => c.IsActive = c.Id == id);
+        await db.SaveChangesAsync();
+    }
+
+    #endregion
+
+    #region Model Methods
+
+    public async Task<List<FuzzAiModel>> GetModelsAsync(AiProvider? provider = null)
+    {
+        using var db = await _dbFactory.CreateDbContextAsync();
+        var query = db.FuzzAiModels.AsQueryable();
+        if (provider.HasValue)
+            query = query.Where(m => m.Provider == provider.Value);
+        return await query.OrderBy(m => m.DisplayName).ToListAsync();
+    }
+
+    public async Task<List<FuzzAiModel>> GetLocalModelsAsync(string? apiBase = null)
+    {
+        var newModels = new List<FuzzAiModel>();
+        
+        var ollamaModels = await FetchOllamaModelIdsAsync(apiBase);
+        if (ollamaModels == null) return newModels;
+
+        using var db = await _dbFactory.CreateDbContextAsync();
+        var existingIds = await db.FuzzAiModels
+            .Where(m => m.Provider == AiProvider.Local)
+            .Select(m => m.ModelId.ToLower().Trim())
+            .ToHashSetAsync();
+
+        foreach (var modelId in ollamaModels.Where(id => !existingIds.Contains(id)))
         {
-            config.IsActive = (config.Id == id);
+            var entity = new FuzzAiModel
+            {
+                Provider = AiProvider.Local,
+                ModelId = modelId,
+                DisplayName = $"{modelId} (Local)",
+                IsCustom = true
+            };
+            newModels.Add(entity);
+            db.FuzzAiModels.Add(entity);
         }
+
+        if (newModels.Any()) await db.SaveChangesAsync();
+        return newModels;
+    }
+
+    public async Task AddModelAsync(FuzzAiModel model)
+    {
+        using var db = await _dbFactory.CreateDbContextAsync();
+        db.FuzzAiModels.Add(model);
         await db.SaveChangesAsync();
     }
 
     public async Task AddCustomModelAsync(AiProvider provider, string modelId)
     {
         using var db = await _dbFactory.CreateDbContextAsync();
-        var exists = await db.FuzzAiModels.AnyAsync(m => m.Provider == provider && m.ModelId == modelId);
-        if (!exists)
+        if (!await db.FuzzAiModels.AnyAsync(m => m.Provider == provider && m.ModelId == modelId))
         {
             db.FuzzAiModels.Add(new FuzzAiModel
             {
@@ -146,13 +164,6 @@ public class AiConfigService : IAiConfigService
             });
             await db.SaveChangesAsync();
         }
-    }
-
-    public async Task AddModelAsync(FuzzAiModel model)
-    {
-        using var db = await _dbFactory.CreateDbContextAsync();
-        db.FuzzAiModels.Add(model);
-        await db.SaveChangesAsync();
     }
 
     public async Task DeleteModelAsync(int id)
@@ -166,6 +177,40 @@ public class AiConfigService : IAiConfigService
         }
     }
 
+    public async Task<int> CleanupMissingLocalModelsAsync(string userId, string? apiBase = null)
+    {
+        var ollamaModels = await FetchOllamaModelIdsAsync(apiBase);
+        if (ollamaModels == null) return 0;
+
+        using var db = await _dbFactory.CreateDbContextAsync();
+        int deletedCount = 0;
+
+        // Cleanup user configs for missing models
+        var localConfigs = await db.AiConfigurations
+            .Where(c => c.UserId == userId && c.Provider == AiProvider.Local)
+            .ToListAsync();
+
+        foreach (var config in localConfigs.Where(c => !ollamaModels.Contains(c.ModelId.ToLower().Trim())))
+        {
+            db.AiConfigurations.Remove(config);
+            deletedCount++;
+        }
+
+        // Cleanup orphaned model entries
+        var localModels = await db.FuzzAiModels
+            .Where(m => m.Provider == AiProvider.Local)
+            .ToListAsync();
+
+        db.FuzzAiModels.RemoveRange(localModels.Where(m => !ollamaModels.Contains(m.ModelId.ToLower().Trim())));
+
+        await db.SaveChangesAsync();
+        return deletedCount;
+    }
+
+    #endregion
+
+    #region Parameters Methods
+
     public async Task<FuzzAiParameters?> GetParametersAsync(int configId)
     {
         using var db = await _dbFactory.CreateDbContextAsync();
@@ -176,7 +221,7 @@ public class AiConfigService : IAiConfigService
     {
         using var db = await _dbFactory.CreateDbContextAsync();
         var existing = await db.FuzzAiParameters.FirstOrDefaultAsync(p => p.FuzzAiConfigId == parameters.FuzzAiConfigId);
-        
+
         if (existing == null)
         {
             db.FuzzAiParameters.Add(parameters);
@@ -189,9 +234,10 @@ public class AiConfigService : IAiConfigService
             existing.FrequencyPenalty = parameters.FrequencyPenalty;
             existing.PresencePenalty = parameters.PresencePenalty;
             existing.UpdatedAt = DateTime.UtcNow;
-            db.FuzzAiParameters.Update(existing);
         }
-        
+
         await db.SaveChangesAsync();
     }
+
+    #endregion
 }

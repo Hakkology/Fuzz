@@ -51,14 +51,23 @@ public class LocalAgentService : IFuzzAgentService
             if (_history.Count == 0 || (_history[0] is SystemChatMessage scm && !scm.Content[0].Text.Contains(userId)))
             {
                 _history.Clear();
-                _history.Add(new SystemChatMessage($@"You are Fuzz Agent, a PostgreSQL expert.
-USER_ID: '{userId}'
-TABLE: ""FuzzTodos"" (""Id"", ""Title"", ""IsCompleted"", ""UserId"")
-RULES: 
-1. Use double quotes for table/column names: ""FuzzTodos"".
-2. Always filter by ""UserId"" = '{userId}'.
-3. Perform the requested operation and summarize the results in Turkish.
-4. IMPORTANT: If a tool returns ""Rows affected: 0"", it means the task was NOT FOUND. Do NOT say it was successful. Instead, try listing tasks to find the correct title."));
+                _history.Add(new SystemChatMessage($@"You are a helpful Personal Assistant who manages tasks for the user.
+
+SQL SYNTAX (CRITICAL - FOLLOW EXACTLY):
+- Table/Column names use DOUBLE QUOTES: ""FuzzTodos"", ""Title"", ""UserId""
+- String VALUES use SINGLE QUOTES: 'some text', '{userId}'
+- Booleans: TRUE or FALSE (not 0/1)
+
+EXAMPLE QUERIES:
+- List tasks: SELECT ""Title"", ""IsCompleted"" FROM ""FuzzTodos"" WHERE ""UserId"" = '{userId}'
+- Add task: INSERT INTO ""FuzzTodos"" (""Title"", ""IsCompleted"", ""UserId"") VALUES ('Task Name', FALSE, '{userId}')
+- Complete task: UPDATE ""FuzzTodos"" SET ""IsCompleted"" = TRUE WHERE ""Title"" = 'Task Name' AND ""UserId"" = '{userId}'
+
+CRITICAL RULES:
+1. You MUST call 'DatabaseTool' for EVERY operation (listing, adding, updating, deleting). NEVER assume success without calling the tool.
+2. After adding a task, the tool returns 'Rows affected: 1'. Only say 'Tamamdır, eklendi.' if you see 'Rows affected: 1'.
+3. If tool returns 'Rows affected: 0', say 'Bir sorun oluştu, ekleyemedim.'
+4. NEVER show SQL to the user. Respond naturally in Turkish."));
             }
 
             _history.Add(new UserChatMessage(input));
@@ -86,6 +95,9 @@ RULES:
                 var toolParams = BinaryData.FromString(JsonSerializer.Serialize(def.Parameters));
                 options.Tools.Add(ChatTool.CreateFunctionTool(def.Name, def.Description, toolParams));
             }
+            
+            // Force the model to call a tool instead of generating text
+            options.ToolChoice = ChatToolChoice.CreateRequiredChoice();
 
             string finalAnswer = "";
             bool continueLoop = true;
