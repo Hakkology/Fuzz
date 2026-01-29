@@ -1,0 +1,181 @@
+@using Fuzz.Domain.Entities
+@using Fuzz.Domain.Data
+@using Fuzz.Domain.Services.Interfaces
+@inject IAiConfigService ConfigService
+@inject ISnackbar Snackbar
+@inject ILogger<AgentVisualSettings> Logger
+
+<MudText Typo="Typo.h6" Class="mb-4">Visual Recognition Models</MudText>
+<MudText Typo="Typo.body2" Class="mb-6">Configure agents capable of analyzing images (e.g., GPT-4o, Gemini Vision, LLaVA).</MudText>
+
+<MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="mt-4" ActivePanelIndexChanged="OnInnerTabChanged" Color="Color.Surface" SliderColor="Color.Secondary">
+    <MudTabPanel Text="Cloud API" Icon="@Icons.Material.Filled.Cloud">
+        <MudGrid Spacing="3" Class="mt-2">
+            <MudItem xs="12" sm="4">
+                <MudSelect T="AiProvider" Value="_newConfig.Provider" ValueChanged="OnProviderChanged" Label="Provider" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter" AdornmentIcon="@Icons.Material.Filled.Api" AdornmentColor="Color.Secondary">
+                    <MudSelectItem Value="@AiProvider.Gemini">Google Gemini</MudSelectItem>
+                    <MudSelectItem Value="@AiProvider.OpenAI">OpenAI</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudSelect T="string" @bind-Value="_newConfig.ModelId" Label="Visual Model" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter" AdornmentIcon="@Icons.Material.Filled.RemoveRedEye" AdornmentColor="Color.Warning">
+                    @foreach (var model in _availableModels)
+                    {
+                        <MudSelectItem Value="@model.ModelId">@model.DisplayName</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudTextField @bind-Value="_newConfig.ApiKey" Label="API Key" InputType="InputType.Password" Variant="Variant.Outlined" Required="true" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Key" />
+            </MudItem>
+            <MudItem xs="12" Class="d-flex justify-end">
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddConfiguration" Disabled="_isSaving" Size="Size.Large" Class="px-8 rounded-pill">
+                    Add Visual Agent
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+    
+    <MudTabPanel Text="Local (Ollama)" Icon="@Icons.Material.Filled.Computer">
+            <MudGrid Spacing="3" Class="mt-2">
+            <MudItem xs="12" sm="12">
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Text" NoIcon="true" Class="mb-2">Use models like <b>llava</b>, <b>bakllava</b>, or <b>moondream</b>.</MudAlert>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_newConfig.ApiBase" Label="Ollama URL" Placeholder="http://localhost:11434" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Link" />
+            </MudItem>
+            <MudItem xs="12" sm="6" Class="d-flex align-center">
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="RefreshLocalModels" FullWidth="true" Style="height: 56px;">
+                    Refresh Local Models
+                </MudButton>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="string" @bind-Value="_newConfig.ModelId" Label="Select Visual Model" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var model in _availableModels)
+                    {
+                        <MudSelectItem Value="@model.ModelId">@model.DisplayName</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12" Class="d-flex justify-end">
+                <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Add" OnClick="AddConfiguration" Disabled="_isSaving" Size="Size.Large" Class="px-8 rounded-pill">
+                    Add Local Visual Agent
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+</MudTabs>
+
+@code {
+    [Parameter] public string UserId { get; set; } = "";
+    [Parameter] public List<FuzzAiModel> AllModels { get; set; } = new();
+    [Parameter] public EventCallback OnConfigAdded { get; set; }
+    [Parameter] public EventCallback OnModelsUpdated { get; set; }
+
+    private FuzzAiConfig _newConfig = new() { Provider = AiProvider.Gemini, ModelId = "" };
+    private List<FuzzAiModel> _availableModels = new();
+    private AiProvider _lastCloudProvider = AiProvider.Gemini;
+    private bool _isSaving = false;
+
+    protected override void OnParametersSet()
+    {
+        UpdateAvailableModels();
+    }
+
+    private void OnInnerTabChanged(int index)
+    {
+        // 0 = Cloud, 1 = Local
+        if (index == 1) 
+        {
+            _newConfig.Provider = AiProvider.Local;
+        }
+        else 
+        {
+            _newConfig.Provider = _lastCloudProvider;
+        }
+        
+        UpdateAvailableModels();
+    }
+
+    private void OnProviderChanged(AiProvider provider)
+    {
+        _newConfig.Provider = provider;
+        if (provider != AiProvider.Local)
+        {
+            _lastCloudProvider = provider;
+        }
+        UpdateAvailableModels();
+    }
+
+    private void UpdateAvailableModels()
+    {
+        if (_newConfig.Provider == AiProvider.Local)
+        {
+             // Visual Tab: Only visual capable
+            _availableModels = AllModels
+                .Where(m => m.Provider == AiProvider.Local && m.IsVisualRecognition)
+                .ToList();
+        }
+        else
+        {
+             // Visual Tab: Only visual capable
+            _availableModels = AllModels
+                .Where(m => m.Provider == _newConfig.Provider && m.IsVisualRecognition)
+                .ToList();
+        }
+
+        if (!_availableModels.Any(m => m.ModelId == _newConfig.ModelId))
+        {
+            _newConfig.ModelId = _availableModels.FirstOrDefault()?.ModelId ?? "";
+        }
+    }
+
+    private async Task RefreshLocalModels()
+    {
+        try
+        {
+            var localModels = await ConfigService.GetLocalModelsAsync(_newConfig.ApiBase);
+            await OnModelsUpdated.InvokeAsync(); // Notify parent
+            
+            if (localModels.Any())
+                Snackbar.Add($"Local models synchronized: {localModels.Count} found.", Severity.Success);
+            else
+                Snackbar.Add("No local models found.", Severity.Info);
+        }
+        catch (Exception ex)
+        {
+             Logger.LogWarning("Error refreshing local models: {Message}", ex.Message);
+        }
+    }
+
+    private async Task AddConfiguration()
+    {
+        if (string.IsNullOrEmpty(UserId)) return;
+
+        _isSaving = true;
+        try
+        {
+            _newConfig.UserId = UserId;
+            _newConfig.UpdatedAt = DateTime.UtcNow;
+            _newConfig.IsVisualRecognition = true; // VISUAL Component
+
+            await ConfigService.AddConfigAsync(_newConfig);
+            Snackbar.Add("Agent configured successfully.", Severity.Success);
+            
+            var provider = _newConfig.Provider;
+            _newConfig = new FuzzAiConfig { Provider = provider, ModelId = "" }; // Reset
+            UpdateAvailableModels();
+            
+            await OnConfigAdded.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}

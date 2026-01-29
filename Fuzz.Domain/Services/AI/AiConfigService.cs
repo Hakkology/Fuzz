@@ -126,50 +126,55 @@ public class AiConfigService : IAiConfigService
 
     public async Task<List<FuzzAiModel>> GetLocalModelsAsync(string? apiBase = null)
     {
-        var newModels = new List<FuzzAiModel>();
-        
         var ollamaModels = await FetchOllamaModelsAsync(apiBase);
-        if (ollamaModels == null) return newModels;
+        if (ollamaModels == null) return new();
 
         using var db = await _dbFactory.CreateDbContextAsync();
-        var existingIds = await db.FuzzAiModels
+        var existingModels = await db.FuzzAiModels
             .Where(m => m.Provider == AiProvider.Local)
-            .Select(m => m.ModelId.ToLower().Trim())
-            .ToHashSetAsync();
+            .ToDictionaryAsync(m => m.ModelId.ToLower().Trim());
+
+        var result = new List<FuzzAiModel>();
 
         foreach (var model in ollamaModels)
         {
             var modelId = model.Name.ToLower().Trim();
-            if (existingIds.Contains(modelId)) continue;
-
             bool isVisual = IsVisualModel(model);
 
-            var entity = new FuzzAiModel
+            if (!existingModels.TryGetValue(modelId, out var entity))
             {
-                Provider = AiProvider.Local,
-                ModelId = model.Name,
-                DisplayName = $"{model.Name} (Local)",
-                IsCustom = true,
-                IsVisualRecognition = isVisual,
-                IsTextCapable = !isVisual // Strict separation for local: if it's visual, assume it's NOT for text only (or at least hide it)
-            };
-            newModels.Add(entity);
-            db.FuzzAiModels.Add(entity);
+                entity = new FuzzAiModel
+                {
+                    Provider = AiProvider.Local,
+                    ModelId = model.Name,
+                    DisplayName = $"{model.Name} (Local)",
+                    IsCustom = true 
+                };
+                db.FuzzAiModels.Add(entity);
+            }
+
+            entity.IsVisualRecognition = isVisual;
+            entity.IsTextCapable = !isVisual; 
+
+            result.Add(entity);
         }
 
-        if (newModels.Any()) await db.SaveChangesAsync();
-        return newModels;
+        await db.SaveChangesAsync();
+        return result;
     }
+
+
+
 
     private static bool IsVisualModel(OllamaModel model)
     {
-        // 1. Check metadata families for 'clip' or 'vision'
+        // Check metadata families for 'clip' or 'vision'
         if (model.Details?.Families != null && model.Details.Families.Any(f => f.Contains("clip") || f.Contains("vision")))
         {
             return true;
         }
         
-        // 2. Fallback to name heuristic
+        // Fallback to name heuristic
         var lower = model.Name.ToLower();
         return lower.Contains("llava") || lower.Contains("vision") || lower.Contains("moondream") || lower.Contains("bakllava");
     }
@@ -179,22 +184,6 @@ public class AiConfigService : IAiConfigService
         using var db = await _dbFactory.CreateDbContextAsync();
         db.FuzzAiModels.Add(model);
         await db.SaveChangesAsync();
-    }
-
-    public async Task AddCustomModelAsync(AiProvider provider, string modelId)
-    {
-        using var db = await _dbFactory.CreateDbContextAsync();
-        if (!await db.FuzzAiModels.AnyAsync(m => m.Provider == provider && m.ModelId == modelId))
-        {
-            db.FuzzAiModels.Add(new FuzzAiModel
-            {
-                Provider = provider,
-                ModelId = modelId,
-                DisplayName = $"{modelId} (Custom)",
-                IsCustom = true
-            });
-            await db.SaveChangesAsync();
-        }
     }
 
     public async Task DeleteModelAsync(int id)

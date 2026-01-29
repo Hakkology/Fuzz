@@ -11,7 +11,7 @@ public interface IAiConfigService
     Task AddConfigAsync(FuzzAiConfig config);
     Task DeleteConfigAsync(int id);
     Task SetActiveConfigAsync(int id, string userId);
-    Task AddCustomModelAsync(AiProvider provider, string modelId);
+
     
     // Admin Model Management
     Task AddModelAsync(FuzzAiModel model);

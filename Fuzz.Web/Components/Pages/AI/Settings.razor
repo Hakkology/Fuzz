@@ -15,152 +15,31 @@
     <MudStack Spacing="6">
         
         @* Header & Intro *@
-        <MudText Typo="Typo.h4" Color="Color.Primary" Style="font-weight: 700;">AI Configuration</MudText>
+        <MudText Typo="Typo.h4" Color="Color.Primary" Style="font-weight: 700;">Agent Settings</MudText>
         <MudText Typo="Typo.subtitle1" Color="Color.Secondary">Manage your Text and Visual AI agents. Connect to Cloud APIs or Local Ollama models.</MudText>
 
         @* Main Configuration Area *@
         <MudCard Elevation="3" Class="rounded-lg">
-            <MudTabs ActivePanelIndex="_activeTabIndex" ActivePanelIndexChanged="OnOuterTabChanged" Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6" Color="Color.Transparent">
+            <MudTabs ActivePanelIndex="_activeTabIndex" Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6" Color="Color.Transparent">
                 
                 @* 1. TEXT AI AGENTS *@
                 <MudTabPanel Text="Text AI Agents" Icon="@Icons.Material.Filled.Chat" Style="font-weight: bold;">
-                    <MudText Typo="Typo.h6" Class="mb-4">Text Generation Models</MudText>
-                    <MudText Typo="Typo.body2" Class="mb-6">Configure agents for chat, coding, and text analysis.</MudText>
-                    
-                    <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="mt-4" ActivePanelIndexChanged="OnInnerTabChanged" Color="Color.Surface" SliderColor="Color.Primary">
-                        <MudTabPanel Text="Cloud API" Icon="@Icons.Material.Filled.Cloud">
-                            <MudGrid Spacing="3" Class="mt-2">
-                                <MudItem xs="12" sm="4">
-                                    <MudSelect T="AiProvider" Value="_newConfig.Provider" ValueChanged="OnProviderChanged" Label="Provider" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter" AdornmentIcon="@Icons.Material.Filled.Api" AdornmentColor="Color.Primary">
-                                        <MudSelectItem Value="@AiProvider.Gemini">Google Gemini</MudSelectItem>
-                                        <MudSelectItem Value="@AiProvider.OpenAI">OpenAI</MudSelectItem>
-                                    </MudSelect>
-                                </MudItem>
-                                <MudItem xs="12" sm="4">
-                                    <MudSelect T="string" @bind-Value="_newConfig.ModelId" Label="Model" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter" AdornmentIcon="@Icons.Material.Filled.SmartToy" AdornmentColor="Color.Secondary">
-                                        @foreach (var model in _availableModels)
-                                        {
-                                            <MudSelectItem Value="@model.ModelId">@model.DisplayName</MudSelectItem>
-                                        }
-                                    </MudSelect>
-                                </MudItem>
-                                <MudItem xs="12" sm="4">
-                                    <MudTextField @bind-Value="_newConfig.ApiKey" Label="API Key" InputType="InputType.Password" Variant="Variant.Outlined" Required="true" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Key" />
-                                </MudItem>
-                                <MudItem xs="12" Class="d-flex justify-end">
-                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddConfiguration" Disabled="_isSaving" Size="Size.Large" Class="px-8 rounded-pill">
-                                        Add Text Agent
-                                    </MudButton>
-                                </MudItem>
-                            </MudGrid>
-                        </MudTabPanel>
-                        
-                        <MudTabPanel Text="Local (Ollama)" Icon="@Icons.Material.Filled.Computer">
-                             <MudGrid Spacing="3" Class="mt-2">
-                                <MudItem xs="12" sm="12">
-                                     <MudAlert Severity="Severity.Info" Variant="Variant.Text" NoIcon="true" Class="mb-2">Ensure Ollama is running safely on your machine.</MudAlert>
-                                </MudItem>
-                                <MudItem xs="12" sm="6">
-                                    <MudTextField @bind-Value="_newConfig.ApiBase" Label="Ollama URL" Placeholder="http://localhost:11434" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Link" />
-                                </MudItem>
-                                <MudItem xs="12" sm="6" Class="d-flex align-center">
-                                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="RefreshLocalModels" FullWidth="true" Style="height: 56px;">
-                                        Refresh Local Models
-                                    </MudButton>
-                                </MudItem>
-                                <MudItem xs="12" sm="6">
-                                    <MudSelect T="string" @bind-Value="_newConfig.ModelId" Label="Select Model" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
-                                        @foreach (var model in _availableModels)
-                                        {
-                                            <MudSelectItem Value="@model.ModelId">@model.DisplayName</MudSelectItem>
-                                        }
-                                        <MudSelectItem Value="@("custom")">Custom Model ID...</MudSelectItem>
-                                    </MudSelect>
-                                </MudItem>
-                                @if(_newConfig.ModelId == "custom") {
-                                    <MudItem xs="12" sm="6">
-                                        <MudTextField @bind-Value="_customModelId" Label="Enter Model ID" Variant="Variant.Outlined" />
-                                    </MudItem>
-                                }
-                                <MudItem xs="12" Class="d-flex justify-end">
-                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddConfiguration" Disabled="_isSaving" Size="Size.Large" Class="px-8 rounded-pill">
-                                        Add Local Agent
-                                    </MudButton>
-                                </MudItem>
-                            </MudGrid>
-                        </MudTabPanel>
-                    </MudTabs>
+                    <AgentTextSettings 
+                        UserId="@_userId" 
+                        AllModels="@_allModels" 
+                        OnConfigAdded="LoadConfigs" 
+                        OnModelsUpdated="LoadModels" />
                 </MudTabPanel>
 
                 @* 2. VISUAL AI AGENTS *@
                 <MudTabPanel Text="Visual AI Agents" Icon="@Icons.Material.Filled.ImageSearch" Style="font-weight: bold;">
-                    <MudText Typo="Typo.h6" Class="mb-4">Visual Recognition Models</MudText>
-                    <MudText Typo="Typo.body2" Class="mb-6">Configure agents capable of analyzing images (e.g., GPT-4o, Gemini Vision, LLaVA).</MudText>
-
-                     <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="mt-4" ActivePanelIndexChanged="OnInnerTabChanged" Color="Color.Surface" SliderColor="Color.Secondary">
-                        <MudTabPanel Text="Cloud API" Icon="@Icons.Material.Filled.Cloud">
-                             <MudGrid Spacing="3" Class="mt-2">
-                                <MudItem xs="12" sm="4">
-                                    <MudSelect T="AiProvider" Value="_newConfig.Provider" ValueChanged="OnProviderChanged" Label="Provider" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter" AdornmentIcon="@Icons.Material.Filled.Api" AdornmentColor="Color.Secondary">
-                                        <MudSelectItem Value="@AiProvider.Gemini">Google Gemini</MudSelectItem>
-                                        <MudSelectItem Value="@AiProvider.OpenAI">OpenAI</MudSelectItem>
-                                    </MudSelect>
-                                </MudItem>
-                                <MudItem xs="12" sm="4">
-                                    <MudSelect T="string" @bind-Value="_newConfig.ModelId" Label="Visual Model" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter" AdornmentIcon="@Icons.Material.Filled.RemoveRedEye" AdornmentColor="Color.Warning">
-                                        @foreach (var model in _availableModels)
-                                        {
-                                            <MudSelectItem Value="@model.ModelId">@model.DisplayName</MudSelectItem>
-                                        }
-                                    </MudSelect>
-                                </MudItem>
-                                <MudItem xs="12" sm="4">
-                                    <MudTextField @bind-Value="_newConfig.ApiKey" Label="API Key" InputType="InputType.Password" Variant="Variant.Outlined" Required="true" Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.Key" />
-                                </MudItem>
-                                <MudItem xs="12" Class="d-flex justify-end">
-                                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddConfiguration" Disabled="_isSaving" Size="Size.Large" Class="px-8 rounded-pill">
-                                        Add Visual Agent
-                                    </MudButton>
-                                </MudItem>
-                            </MudGrid>
-                        </MudTabPanel>
-                        
-                         <MudTabPanel Text="Local (Ollama)" Icon="@Icons.Material.Filled.Computer">
-                             <MudGrid Spacing="3" Class="mt-2">
-                                <MudItem xs="12" sm="12">
-                                     <MudAlert Severity="Severity.Info" Variant="Variant.Text" NoIcon="true" Class="mb-2">Use models like <b>llava</b>, <b>bakllava</b>, or <b>moondream</b>.</MudAlert>
-                                </MudItem>
-                                <MudItem xs="12" sm="6">
-                                    <MudTextField @bind-Value="_newConfig.ApiBase" Label="Ollama URL" Placeholder="http://localhost:11434" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Link" />
-                                </MudItem>
-                                <MudItem xs="12" sm="6" Class="d-flex align-center">
-                                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="RefreshLocalModels" FullWidth="true" Style="height: 56px;">
-                                        Refresh Local Models
-                                    </MudButton>
-                                </MudItem>
-                                <MudItem xs="12" sm="6">
-                                    <MudSelect T="string" @bind-Value="_newConfig.ModelId" Label="Select Visual Model" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
-                                        @foreach (var model in _availableModels)
-                                        {
-                                            <MudSelectItem Value="@model.ModelId">@model.DisplayName</MudSelectItem>
-                                        }
-                                        <MudSelectItem Value="@("custom")">Custom Model ID...</MudSelectItem>
-                                    </MudSelect>
-                                </MudItem>
-                                @if(_newConfig.ModelId == "custom") {
-                                    <MudItem xs="12" sm="6">
-                                        <MudTextField @bind-Value="_customModelId" Label="Enter Model ID" Variant="Variant.Outlined" />
-                                    </MudItem>
-                                }
-                                <MudItem xs="12" Class="d-flex justify-end">
-                                    <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Add" OnClick="AddConfiguration" Disabled="_isSaving" Size="Size.Large" Class="px-8 rounded-pill">
-                                        Add Local Visual Agent
-                                    </MudButton>
-                                </MudItem>
-                            </MudGrid>
-                        </MudTabPanel>
-                    </MudTabs>
+                    <AgentVisualSettings 
+                        UserId="@_userId" 
+                        AllModels="@_allModels" 
+                        OnConfigAdded="LoadConfigs" 
+                        OnModelsUpdated="LoadModels" />
                 </MudTabPanel>
+
             </MudTabs>
         </MudCard>
 
@@ -235,15 +114,12 @@
 @code {
     private List<FuzzAiConfig> _configs = new();
     private List<FuzzAiModel> _allModels = new();
-    private List<FuzzAiModel> _availableModels = new();
-    private FuzzAiConfig _newConfig = new() { Provider = AiProvider.Gemini, ModelId = "" };
-    private string _customModelId = "";
+    
+    // We maintain basic state for tabs
+    private int _activeTabIndex = 0;
+    
     private string _userId = "";
     private bool _isLoading = true;
-    private bool _isSaving = false;
-    private int _activeTabIndex = 0;
-    private AiProvider _lastCloudProvider = AiProvider.Gemini;
-    private string _configMode = "text";
 
     private Color GetProviderColor(AiProvider provider) => provider switch
     {
@@ -272,7 +148,6 @@
             {
                 await LoadModels();
                 await LoadConfigs();
-                UpdateAvailableModels();
             }
         }
         catch (Exception ex)
@@ -285,112 +160,8 @@
     private async Task LoadModels()
     {
         _allModels = await ConfigService.GetModelsAsync();
-    }
-
-    private void UpdateAvailableModels()
-    {
-        var isVisualMode = _configMode == "visual";
-        
-        if (_newConfig.Provider == AiProvider.Local)
-        {
-             if (isVisualMode)
-            {
-                _availableModels = _allModels
-                    .Where(m => m.Provider == AiProvider.Local && m.IsVisualRecognition)
-                    .ToList();
-            }
-            else
-            {
-                // Text Tab: Only text capable models (hides pure visual models like moondream)
-                _availableModels = _allModels
-                    .Where(m => m.Provider == AiProvider.Local && m.IsTextCapable)
-                    .ToList();
-            }
-        }
-        else
-        {
-             if (isVisualMode)
-            {
-                // Visual Tab: Only visual capable
-                _availableModels = _allModels
-                    .Where(m => m.Provider == _newConfig.Provider && m.IsVisualRecognition)
-                    .ToList();
-            }
-            else
-            {
-                // Text Tab: Only text capable (includes hybrids like GPT-4o)
-                _availableModels = _allModels
-                    .Where(m => m.Provider == _newConfig.Provider && m.IsTextCapable)
-                    .ToList();
-            }
-        }
-
-        if (!_availableModels.Any(m => m.ModelId == _newConfig.ModelId))
-        {
-            _newConfig.ModelId = _availableModels.FirstOrDefault()?.ModelId ?? "custom";
-        }
-    }
-
-    private async Task OnOuterTabChanged(int index)
-    {
-        // 0 = Text AI, 1 = Visual AI
-        _configMode = index == 0 ? "text" : "visual";
-        
-        // Reset provider logic if needed, or keep last selected
-        _newConfig.Provider = _lastCloudProvider; 
-        
-        // Reset inner tab to cloud (index 0) or keep logic? 
-        // Better to reset to Cloud (0) usually
-        // But _newConfig defaults to Cloud.
-        
-        UpdateAvailableModels();
-        await Task.CompletedTask;
-    }
-
-    private async Task OnInnerTabChanged(int index)
-    {
-        // 0 = Cloud, 1 = Local
-        if (index == 1) 
-        {
-            _newConfig.Provider = AiProvider.Local;
-            await RefreshLocalModels();
-        }
-        else 
-        {
-            _newConfig.Provider = _lastCloudProvider;
-        }
-        
-        UpdateAvailableModels();
-    }
-
-    private async Task OnProviderChanged(AiProvider provider)
-    {
-        _newConfig.Provider = provider;
-        if (provider != AiProvider.Local)
-        {
-            _lastCloudProvider = provider;
-        }
-        UpdateAvailableModels();
-    }
-
-    private async Task RefreshLocalModels()
-    {
-        try
-        {
-            var localModels = await ConfigService.GetLocalModelsAsync(_newConfig.ApiBase);
-            await LoadModels();
-            UpdateAvailableModels();
-            StateHasChanged();
-            
-            if (localModels.Any())
-                Snackbar.Add($"{localModels.Count} new models found.", Severity.Success);
-            else
-                Snackbar.Add("No new local models found.", Severity.Info);
-        }
-        catch (Exception ex)
-        {
-             Logger.LogWarning("Error refreshing local models: {Message}", ex.Message);
-        }
+        // Trigger state change so children re-render if they rely on AllModels
+        StateHasChanged();
     }
 
     private async Task LoadConfigs()
@@ -406,51 +177,6 @@
         {
             _isLoading = false;
             StateHasChanged();
-        }
-    }
-
-    private async Task AddConfiguration()
-    {
-        if (string.IsNullOrEmpty(_userId)) return;
-
-        if (_newConfig.ModelId == "custom" && string.IsNullOrWhiteSpace(_customModelId))
-        {
-            Snackbar.Add("Please enter a custom model ID.", Severity.Warning);
-            return;
-        }
-
-        _isSaving = true;
-        try
-        {
-            if (_newConfig.ModelId == "custom")
-            {
-                await ConfigService.AddCustomModelAsync(_newConfig.Provider, _customModelId);
-                await LoadModels();
-                _newConfig.ModelId = _customModelId;
-            }
-
-            _newConfig.UserId = _userId;
-            _newConfig.UpdatedAt = DateTime.UtcNow;
-            _newConfig.IsActive = !_configs.Any(); // First one is active
-            _newConfig.IsVisualRecognition = (_configMode == "visual");
-
-            await ConfigService.AddConfigAsync(_newConfig);
-            Snackbar.Add("Agent configured successfully.", Severity.Success);
-            
-            var provider = _newConfig.Provider;
-            _newConfig = new FuzzAiConfig { Provider = provider, ModelId = "" }; // Reset
-            _customModelId = "";
-            UpdateAvailableModels();
-            
-            await LoadConfigs();
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            _isSaving = false;
         }
     }
 
