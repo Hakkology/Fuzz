@@ -1,4 +1,4 @@
-namespace Fuzz.Domain.Services;
+namespace Fuzz.Domain.Models;
 
 public class FuzzResponse
 {

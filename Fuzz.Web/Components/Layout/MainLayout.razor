@@ -20,18 +20,20 @@
                 <form action="Account/Logout" method="post">
                     <AntiforgeryToken />
                     <input type="hidden" name="ReturnUrl" value="@currentUrl" />
-                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Class="ml-2">
-                        <MudIcon Icon="@Icons.Material.Filled.Logout" Size="Size.Small" Class="mr-1" />
-                        Çıkış
-                    </MudButton>
+                    <button type="submit" class="mud-button-root mud-button mud-button-filled mud-button-filled-primary mud-button-size-small ml-2">
+                        <span class="mud-button-label">
+                            <MudIcon Icon="@Icons.Material.Filled.Logout" Size="Size.Small" Class="mr-1" />
+                            Logout
+                        </span>
+                    </button>
                 </form>
             </Authorized>
             <NotAuthorized>
-                <MudButton Variant="Variant.Outlined" Color="Color.Primary" href="Account/Register" Size="Size.Small" Class="mr-2">
-                    Kayıt Ol
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" href="/Account/Register" Size="Size.Small" Class="mr-2">
+                    Register
                 </MudButton>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" href="Account/Login" Size="Size.Small">
-                    Giriş Yap
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" href="/Account/Login" Size="Size.Small">
+                    Login
                 </MudButton>
             </NotAuthorized>
         </AuthorizeView>

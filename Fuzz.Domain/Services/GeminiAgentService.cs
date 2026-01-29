@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Fuzz.Domain.Data;
+using Fuzz.Domain.Models;
 using Fuzz.Domain.Ai;
 using Fuzz.Domain.Entities;
 using System.Text.Json;
@@ -43,35 +44,33 @@ public class GeminiAgentService : IFuzzAgentService
             var configData = await _configService.GetActiveConfigAsync(userId, AiProvider.Gemini);
             if (configData == null || string.IsNullOrWhiteSpace(configData.ApiKey))
             {
-                return new FuzzResponse { Answer = "⚠️ Lütfen 'AI Ayarları' sayfasından aktif bir Gemini yapılandırması seçin." };
+                return new FuzzResponse { Answer = "⚠️ Please configure an active Gemini API key in the 'AI Settings' page." };
             }
 
             var client = new Client(apiKey: configData.ApiKey.Trim());
-            string modelId = string.IsNullOrWhiteSpace(configData.ModelId) ? "gemini-3-flash-preview" : configData.ModelId;
+            string modelId = string.IsNullOrWhiteSpace(configData.ModelId) ? "gemini-1.5-flash" : configData.ModelId;
             
-            // Initialization Logic
             if (_history.Count == 0 || (_history[0].Parts.Count > 0 && _history[0].Parts[0].Text != null && !_history[0].Parts[0].Text!.Contains(userId)))
             {
                 _history.Clear();
-                _history.Add(new Content { Role = "user", Parts = new List<Part> { new Part { Text = $@"Sen Fuzz Agent'sın. PostgreSQL uzmanısın.
-KULLANICI_ID: '{userId}'
-TABLO: ""FuzzTodos"" (""Id"", ""Title"", ""IsCompleted"", ""UserId"")
-KURALLAR: 
-1. Tablo/kolon adları çift tırnakta: ""FuzzTodos"".
-2. Filtre: ""UserId"" = '{userId}'
-3. Araçları kullanarak işlemi yap ve sonucu Türkçe özetle." } } });
-                _history.Add(new Content { Role = "model", Parts = new List<Part> { new Part { Text = "Hazırım." } } });
+                _history.Add(new Content { Role = "user", Parts = new List<Part> { new Part { Text = $@"You are Fuzz Agent, a PostgreSQL expert.
+USER_ID: '{userId}'
+TABLE: ""FuzzTodos"" (""Id"", ""Title"", ""IsCompleted"", ""UserId"")
+RULES: 
+1. Use double quotes for table/column names: ""FuzzTodos"".
+2. Always filter by ""UserId"" = '{userId}'.
+3. Perform the requested operation and summarize the results in Turkish." } } });
+                _history.Add(new Content { Role = "model", Parts = new List<Part> { new Part { Text = "Ready." } } });
             }
 
             _history.Add(new Content { Role = "user", Parts = new List<Part> { new Part { Text = input } } });
 
-            // Tools Orchestration (DRY)
             var toolDefinitions = new Tool { FunctionDeclarations = _tools.Select(t => t.GetDefinition()).ToList() };
             var chatConfig = new GenerateContentConfig
             {
                 Tools = new List<Tool> { toolDefinitions },
                 Temperature = 0.1f,
-                MaxOutputTokens = 512
+                MaxOutputTokens = 1024
             };
 
             string finalAnswer = "";
@@ -127,8 +126,8 @@ KURALLAR:
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Agent hatası");
-            return new FuzzResponse { Answer = $"Bir teknik hata oluştu: {ex.Message}" };
+            _logger.LogError(ex, "Agent Execution Error");
+            return new FuzzResponse { Answer = $"A technical error occurred: {ex.Message}" };
         }
     }
 

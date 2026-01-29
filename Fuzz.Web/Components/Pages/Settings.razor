@@ -10,32 +10,30 @@
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
     <MudStack Spacing="6">
-        @* Header Section *@
         <MudPaper Elevation="4" Class="pa-8 blur-card header-bg">
             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="4">
                 <div class="icon-pulse">
                     <MudIcon Icon="@Icons.Material.Filled.Settings" Color="Color.Primary" Style="font-size: 3rem;" />
                 </div>
                 <MudStack Spacing="0">
-                    <MudText Typo="Typo.h4" Class="gradient-text">Yapay Zeka Yapılandırması</MudText>
-                    <MudText Typo="Typo.body2" Style="color: #B0B0B0;">Servis sağlayıcılarınızı ve modellerinizi buradan yönetin.</MudText>
+                    <MudText Typo="Typo.h4" Class="gradient-text">AI Configuration</MudText>
+                    <MudText Typo="Typo.body2" Style="color: #B0B0B0;">Manage your AI service providers and models here.</MudText>
                 </MudStack>
             </MudStack>
         </MudPaper>
 
         <MudTabs ActivePanelIndex="_activeTabIndex" ActivePanelIndexChanged="OnTabChanged" Elevation="4" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-8 blur-card mt-4" Class="custom-tabs">
-            @* --- Cloud API Tab --- *@
-            <MudTabPanel Text="Bulut Servisleri (API)" Icon="@Icons.Material.Filled.CloudQueue">
-                <MudText Typo="Typo.h6" Color="Color.Primary" Class="mb-6">Yeni Cloud Yapılandırması</MudText>
+            <MudTabPanel Text="Cloud Services (API)" Icon="@Icons.Material.Filled.CloudQueue">
+                <MudText Typo="Typo.h6" Color="Color.Primary" Class="mb-6">New Cloud Configuration</MudText>
                 <MudGrid>
                     <MudItem xs="12" sm="4">
-                        <MudSelect T="AiProvider" Value="_newConfig.Provider" ValueChanged="OnProviderChanged" Label="Servis Sağlayıcı" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+                        <MudSelect T="AiProvider" Value="_newConfig.Provider" ValueChanged="OnProviderChanged" Label="Provider" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
                             <MudSelectItem Value="@AiProvider.Gemini">Google Gemini</MudSelectItem>
                             <MudSelectItem Value="@AiProvider.OpenAI">OpenAI</MudSelectItem>
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" sm="4">
-                        <MudSelect T="string" @bind-Value="_newConfig.ModelId" Label="Model Seçimi" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+                        <MudSelect T="string" @bind-Value="_newConfig.ModelId" Label="Model Selection" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
                             @foreach (var model in _availableModels.Where(m => m.Provider != AiProvider.Local))
                             {
                                 <MudSelectItem Value="@model.ModelId">@model.DisplayName</MudSelectItem>
@@ -44,59 +42,58 @@
                     </MudItem>
                     <MudItem xs="12" sm="4">
                         <MudTextField @bind-Value="_newConfig.ApiKey" Label="API Key" InputType="InputType.Password" Variant="Variant.Outlined" Required="true" 
-                                      HelperText="API anahtarınız güvenli bir şekilde saklanır." />
+                                      HelperText="Your API key is stored securely." />
                     </MudItem>
                     <MudItem xs="12" Class="d-flex justify-end">
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddConfiguration" Disabled="_isSaving" Class="px-8 py-3 rounded-pill">
-                            Yapılandırmayı Ekle
+                            Add Configuration
                         </MudButton>
                     </MudItem>
                 </MudGrid>
             </MudTabPanel>
 
-            @* --- Local AI Tab --- *@
-            <MudTabPanel Text="Yerel Yapay Zeka (Ollama)" Icon="@Icons.Material.Filled.Dns">
+            <MudTabPanel Text="Local AI (Ollama)" Icon="@Icons.Material.Filled.Dns">
                 <MudStack Spacing="6">
                     <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-2">
-                        Yerel modeller için <b>Ollama</b> veya OpenAI uyumlu bir API servisinin çalışıyor olması gereklidir.
+                        Local models require <b>Ollama</b> or an OpenAI-compatible API to be running.
                     </MudAlert>
 
                     <MudGrid>
                         <MudItem xs="12" sm="6">
-                            <MudTooltip Text="Varsayılan: http://localhost:11434. Farklı bir port veya adres kullanıyorsanız güncelleyiniz.">
+                            <MudTooltip Text="Default: http://localhost:11434. Update if you use a different port or address.">
                                 <MudTextField @bind-Value="_newConfig.ApiBase" Label="API Base URL (Ollama / Local)" Placeholder="http://localhost:11434" Variant="Variant.Outlined" Required="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Link" />
                             </MudTooltip>
                         </MudItem>
                         <MudItem xs="12" sm="6" Class="d-flex align-center">
                             <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.AutoFixHigh" OnClick="RefreshLocalModels" FullWidth="true" Style="height: 56px;" Class="rounded-lg">
-                                Modelleri Otomatik Tara (Ollama)
+                                Refresh Models (Ollama)
                             </MudButton>
                         </MudItem>
                         
                         <MudItem xs="12" sm="6">
-                            <MudSelect T="string" @bind-Value="_newConfig.ModelId" Label="Model Seçimi" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+                            <MudSelect T="string" @bind-Value="_newConfig.ModelId" Label="Model Selection" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
                                 @foreach (var model in _availableModels.Where(m => m.Provider == AiProvider.Local))
                                 {
                                     <MudSelectItem Value="@model.ModelId">@model.DisplayName</MudSelectItem>
                                 }
-                                <MudSelectItem Value="@("custom")">-- Özel Model Gir --</MudSelectItem>
+                                <MudSelectItem Value="@("custom")">-- Enter Custom Model --</MudSelectItem>
                             </MudSelect>
                         </MudItem>
 
                         @if (_newConfig.ModelId == "custom")
                         {
                             <MudItem xs="12" sm="6">
-                                <MudTextField @bind-Value="_customModelId" Label="Özel Model ID (Örn: deepseek-r1:7b)" Variant="Variant.Outlined" Required="true" />
+                                <MudTextField @bind-Value="_customModelId" Label="Custom Model ID (e.g., deepseek-r1:7b)" Variant="Variant.Outlined" Required="true" />
                             </MudItem>
                         }
 
                         <MudItem xs="12" sm="6">
-                            <MudTextField @bind-Value="_newConfig.ApiKey" Label="API Key (Gerekliyse)" InputType="InputType.Password" Variant="Variant.Outlined" Placeholder="Genellikle boş bırakılır" />
+                            <MudTextField @bind-Value="_newConfig.ApiKey" Label="API Key (If Required)" InputType="InputType.Password" Variant="Variant.Outlined" Placeholder="Usually left empty" />
                         </MudItem>
 
                         <MudItem xs="12" Class="d-flex justify-end mt-4">
                             <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Add" OnClick="AddConfiguration" Disabled="_isSaving" Class="px-8 py-3 rounded-pill" Style="color: #1a1a2e; font-weight: bold;">
-                                Yerel Yapılandırmayı Kaydet
+                                Save Local Configuration
                             </MudButton>
                         </MudItem>
                     </MudGrid>
@@ -104,25 +101,24 @@
             </MudTabPanel>
         </MudTabs>
 
-        @* Active Configurations List *@
         <MudPaper Elevation="4" Class="pa-8 blur-card mt-6">
             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-6">
-                <MudText Typo="Typo.h6" Color="Color.Primary">Mevcut Yapılandırmalarınız</MudText>
+                <MudText Typo="Typo.h6" Color="Color.Primary">Your Configurations</MudText>
                 @if (_isLoading) { <MudProgressCircular Color="Color.Primary" Size="Size.Small" Indeterminate="true" /> }
             </MudStack>
 
             @if (!_configs.Any() && !_isLoading)
             {
-                <MudAlert Severity="Severity.Info" Class="blur-alert py-6">Henüz bir API anahtarı eklenmemiş. Yukarıdaki sekmelerden birini kullanarak başlayın.</MudAlert>
+                <MudAlert Severity="Severity.Info" Class="blur-alert py-6">No configurations found. Start by adding one from the tabs above.</MudAlert>
             }
             else
             {
                 <MudTable Items="_configs" Hover="true" Elevation="0" Class="transparent-table" Loading="_isLoading">
                     <HeaderContent>
-                        <MudTh>Servis</MudTh>
-                        <MudTh>Model Detayı</MudTh>
-                        <MudTh>Durum</MudTh>
-                        <MudTh Style="width: 150px">Aktif Et</MudTh>
+                        <MudTh>Service</MudTh>
+                        <MudTh>Model Detail</MudTh>
+                        <MudTh>Status</MudTh>
+                        <MudTh Style="width: 150px">Active</MudTh>
                         <MudTh Style="width: 50px"></MudTh>
                     </HeaderContent>
                     <RowTemplate>
@@ -141,11 +137,11 @@
                         <MudTd>
                             @if (context.IsActive)
                             {
-                                <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Filled">AKTİF</MudChip>
+                                <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Filled">ACTIVE</MudChip>
                             }
                             else
                             {
-                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Style="color: #666">Beklemede</MudChip>
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Style="color: #666">Pending</MudChip>
                             }
                         </MudTd>
                         <MudTd>
@@ -261,7 +257,7 @@
             
             if (string.IsNullOrEmpty(_userId))
             {
-                Logger.LogWarning("Ayarlar sayfası: Kullanıcı ID bulunamadı.");
+                Logger.LogWarning("Settings Page: User ID not found.");
             }
             
             await LoadModels();
@@ -270,8 +266,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Ayarlar yüklenirken hata oluştu.");
-            Snackbar.Add("Sistem yüklenirken bir hata oluştu.", Severity.Error);
+            Logger.LogError(ex, "Error loading settings.");
+            Snackbar.Add("An error occurred while loading the system.", Severity.Error);
         }
     }
 
@@ -330,16 +326,16 @@
             
             if (localModels.Any())
             {
-                Snackbar.Add($"{localModels.Count} adet local model bulundu ve sisteme eklendi.", Severity.Success);
+                Snackbar.Add($"{localModels.Count} local models found and added to the system.", Severity.Success);
             }
             else
             {
-                Snackbar.Add("Local model bulunamadı. Ollama'nın çalıştığından emin olun.", Severity.Warning);
+                Snackbar.Add("No new local models found.", Severity.Warning);
             }
         }
         catch (Exception ex)
         {
-            Logger.LogWarning("Local modeller yenilenirken hata: {Message}", ex.Message);
+            Logger.LogWarning("Error refreshing local models: {Message}", ex.Message);
         }
     }
 
@@ -354,7 +350,7 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Yapılandırmalar çekilemedi.");
+            Logger.LogError(ex, "Failed to load configurations.");
         }
         finally
         {
@@ -367,13 +363,13 @@
     {
         if (string.IsNullOrEmpty(_userId))
         {
-            Snackbar.Add("Kullanıcı oturumu bulunamadı.", Severity.Error);
+            Snackbar.Add("User session not found.", Severity.Error);
             return;
         }
 
         if (_newConfig.ModelId == "custom" && string.IsNullOrWhiteSpace(_customModelId))
         {
-            Snackbar.Add("Lütfen özel model adını girin.", Severity.Warning);
+            Snackbar.Add("Please enter a custom model name.", Severity.Warning);
             return;
         }
 
@@ -382,7 +378,6 @@
 
         try
         {
-            // Eğer özel model girildiyse, önce servise ekle
             if (_newConfig.ModelId == "custom")
             {
                 await ConfigService.AddCustomModelAsync(_newConfig.Provider, _customModelId);
@@ -396,9 +391,8 @@
 
             await ConfigService.AddConfigAsync(_newConfig);
 
-            Snackbar.Add("Yapılandırma başarıyla eklendi.", Severity.Success);
+            Snackbar.Add("Configuration added successfully.", Severity.Success);
             
-            // Reset form
             var currentProvider = _newConfig.Provider;
             _newConfig = new FuzzAiConfig { Provider = currentProvider, ModelId = "" };
             UpdateAvailableModels();
@@ -408,8 +402,8 @@
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Yapılandırma kaydedilemedi.");
-            Snackbar.Add($"Kaydetme hatası: {ex.Message}", Severity.Error);
+            Logger.LogError(ex, "Failed to save configuration.");
+            Snackbar.Add($"Save error: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -420,7 +414,6 @@
 
     private async Task SetActive(FuzzAiConfig config)
     {
-        // Hızlı geri bildirim için yerel durumu hemen güncelle (Optimistic UI)
         foreach (var c in _configs)
         {
             c.IsActive = (c.Id == config.Id);
@@ -430,15 +423,14 @@
         try
         {
             await ConfigService.SetActiveConfigAsync(config.Id, _userId);
-            // Veritabanından son durumu teyit et
             await LoadConfigs();
-            Snackbar.Add($"{config.Provider} şu an aktif sağlayıcı.", Severity.Info);
+            Snackbar.Add($"{config.Provider} is now the active provider.", Severity.Info);
         }
         catch (Exception ex)
         {
-            await LoadConfigs(); // Hata durumunda eski hali geri yükle
-            Logger.LogError(ex, "Aktif yapılandırma değiştirilemedi.");
-            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+            await LoadConfigs();
+            Logger.LogError(ex, "Failed to change active configuration.");
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
         }
         finally
         {
@@ -452,12 +444,12 @@
         {
             await ConfigService.DeleteConfigAsync(id);
             await LoadConfigs();
-            Snackbar.Add("Yapılandırma silindi.", Severity.Warning);
+            Snackbar.Add("Configuration deleted.", Severity.Warning);
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Yapılandırma silinemedi.");
-            Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+            Logger.LogError(ex, "Failed to delete configuration.");
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
         }
     }
 }

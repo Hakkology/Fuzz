@@ -22,7 +22,6 @@ public class FuzzDbContext : IdentityDbContext<FuzzUser>
         builder.Entity<FuzzAiConfig>().ToTable("FuzzAIConfigs");
         builder.Entity<FuzzAiModel>().ToTable("FuzzAiModels");
         
-        // Identity tablo isimlerini de Fuzz ile başlatalım
         builder.Entity<FuzzUser>().ToTable("FuzzUsers");
         builder.Entity<IdentityRole>().ToTable("FuzzRoles");
         builder.Entity<IdentityUserRole<string>>().ToTable("FuzzUserRoles");
