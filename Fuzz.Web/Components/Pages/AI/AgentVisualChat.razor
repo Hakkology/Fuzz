@@ -1,0 +1,270 @@
+@page "/agent-visual"
+@rendermode InteractiveServer
+@using Fuzz.Domain.Entities
+@using Fuzz.Domain.Services.Interfaces
+@using Fuzz.Domain.Services.AI
+@inject IEnumerable<IVisualAgentService> VisualServices
+@inject IAiConfigService ConfigService
+@inject AuthenticationStateProvider AuthProvider
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
+    <MudPaper Elevation="0" Class="pa-4 visual-container">
+        
+        @* Header *@
+        <div class="visual-header">
+            <MudAvatar Color="Color.Secondary" Size="Size.Medium">
+                <MudIcon Icon="@Icons.Material.Filled.ImageSearch" />
+            </MudAvatar>
+            <div class="visual-header-text">
+                <MudText Typo="Typo.h6">Fuzz Visual AI</MudText>
+                <MudText Typo="Typo.caption" Style="color: #B0B0B0;">Image recognition assistant</MudText>
+            </div>
+            <MudChip T="string" Color="@(_hasActiveConfig ? Color.Success : Color.Error)" Size="Size.Small">
+                @(_hasActiveConfig ? "Ready" : "No Config")
+            </MudChip>
+        </div>
+
+        @* Image Preview *@
+        <div class="image-preview-area">
+            @if (_imageData != null)
+            {
+                <img src="@_imageDataUrl" alt="Uploaded image" class="preview-image" />
+                <MudIconButton Icon="@Icons.Material.Filled.Close" 
+                               Size="Size.Small" 
+                               Color="Color.Error"
+                               Class="remove-image-btn"
+                               OnClick="RemoveImage" />
+            }
+            else
+            {
+                <MudPaper Elevation="0" Class="upload-placeholder" @onclick="TriggerFileUpload">
+                    <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Size="Size.Large" Color="Color.Primary" />
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Click to upload image</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">JPEG, PNG, WebP</MudText>
+                </MudPaper>
+            }
+        </div>
+        
+        <InputFile id="fileInput" OnChange="HandleFileUpload" Accept=".jpg,.jpeg,.png,.webp" style="display:none;" />
+
+        @* Response Area *@
+        @if (!string.IsNullOrEmpty(_response))
+        {
+            <MudPaper Elevation="0" Class="response-area">
+                <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="mb-2">
+                    <MudIcon Icon="@Icons.Material.Filled.AutoAwesome" Size="Size.Small" Class="mr-1" /> AI Response
+                </MudText>
+                <MudText Typo="Typo.body2">@((MarkupString)FormatResponse(_response))</MudText>
+            </MudPaper>
+        }
+
+        @* Input Area *@
+        <div class="visual-input-area">
+            <MudTextField @bind-Value="_prompt" 
+                          Placeholder="Ask about the image..." 
+                          Variant="Variant.Outlined" 
+                          Margin="Margin.Dense" 
+                          OnKeyDown="@HandleKeyDown"
+                          Disabled="@(_isProcessing || _imageData == null)"
+                          Immediate="true"
+                          FullWidth="true"
+                          Lines="2" />
+            <MudIconButton Icon="@(_isProcessing ? Icons.Material.Filled.HourglassTop : Icons.Material.Filled.Send)" 
+                           Color="Color.Secondary" 
+                           Variant="Variant.Filled"
+                           OnClick="ProcessImage" 
+                           Disabled="@(string.IsNullOrWhiteSpace(_prompt) || _imageData == null || _isProcessing)" />
+        </div>
+    </MudPaper>
+</MudContainer>
+
+<style>
+    .visual-container {
+        background: rgba(26, 26, 46, 0.7) !important;
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(138, 43, 226, 0.2);
+        border-radius: 20px !important;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+    
+    .visual-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid rgba(138, 43, 226, 0.15);
+    }
+    
+    .visual-header-text {
+        flex: 1;
+    }
+    
+    .image-preview-area {
+        position: relative;
+        min-height: 200px;
+        max-height: 400px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        overflow: hidden;
+        background: rgba(15, 15, 35, 0.5);
+        border: 2px dashed rgba(138, 43, 226, 0.3);
+    }
+    
+    .preview-image {
+        max-width: 100%;
+        max-height: 400px;
+        object-fit: contain;
+        border-radius: 8px;
+    }
+    
+    .remove-image-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: rgba(0,0,0,0.5) !important;
+    }
+    
+    .upload-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 40px;
+        cursor: pointer;
+        background: transparent !important;
+        transition: all 0.2s;
+    }
+    
+    .upload-placeholder:hover {
+        background: rgba(138, 43, 226, 0.1) !important;
+    }
+    
+    .response-area {
+        background: rgba(138, 43, 226, 0.1) !important;
+        border-left: 3px solid #8A2BE2;
+        border-radius: 8px !important;
+        padding: 16px;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    
+    .visual-input-area {
+        display: flex;
+        gap: 8px;
+        align-items: flex-end;
+        padding-top: 16px;
+        border-top: 1px solid rgba(138, 43, 226, 0.15);
+    }
+</style>
+
+@code {
+    private byte[]? _imageData;
+    private string? _imageDataUrl;
+    private string _prompt = "";
+    private string _response = "";
+    private bool _isProcessing = false;
+    private bool _hasActiveConfig = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CheckActiveConfig();
+    }
+
+    private async Task CheckActiveConfig()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+        
+        var geminiConfig = await ConfigService.GetActiveConfigAsync(userId, AiProvider.Gemini, isVisual: true);
+        var openAiConfig = await ConfigService.GetActiveConfigAsync(userId, AiProvider.OpenAI, isVisual: true);
+        var localConfig = await ConfigService.GetActiveConfigAsync(userId, AiProvider.Local, isVisual: true);
+        
+        _hasActiveConfig = geminiConfig != null || openAiConfig != null || localConfig != null;
+    }
+
+    private void TriggerFileUpload()
+    {
+        // Using JS to trigger file input click
+    }
+
+    private async Task HandleFileUpload(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file.Size > 10 * 1024 * 1024)
+        {
+            Snackbar.Add("Image must be less than 10MB", Severity.Warning);
+            return;
+        }
+
+        using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        _imageData = ms.ToArray();
+        _imageDataUrl = $"data:{file.ContentType};base64,{Convert.ToBase64String(_imageData)}";
+        _response = "";
+    }
+
+    private void RemoveImage()
+    {
+        _imageData = null;
+        _imageDataUrl = null;
+        _response = "";
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && e.CtrlKey && !_isProcessing && _imageData != null)
+        {
+            await ProcessImage();
+        }
+    }
+
+    private async Task ProcessImage()
+    {
+        if (_imageData == null || string.IsNullOrWhiteSpace(_prompt)) return;
+
+        _isProcessing = true;
+        _response = "";
+
+        try
+        {
+            var authState = await AuthProvider.GetAuthenticationStateAsync();
+            var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "guest";
+
+            // Try services in order: Gemini, OpenAI, Local
+            var visualService = VisualServices.OfType<GeminiVisualService>().FirstOrDefault()
+                             ?? VisualServices.OfType<OpenAiVisualService>().FirstOrDefault()
+                             ?? VisualServices.FirstOrDefault();
+
+            if (visualService == null)
+            {
+                _response = "⚠️ No visual AI service available. Please configure one in Settings.";
+                return;
+            }
+
+            var result = await visualService.ProcessImageAsync(_imageData, _prompt, userId);
+            _response = result.Answer;
+        }
+        catch (Exception ex)
+        {
+            _response = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private string FormatResponse(string content)
+    {
+        content = System.Web.HttpUtility.HtmlEncode(content);
+        content = System.Text.RegularExpressions.Regex.Replace(content, @"\*\*(.+?)\*\*", "<strong>$1</strong>");
+        content = content.Replace("\n", "<br/>");
+        return content;
+    }
+}

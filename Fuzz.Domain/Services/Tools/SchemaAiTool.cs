@@ -56,7 +56,6 @@ public class SchemaAiTool : IAiTool
         {
             string sql = sqlObj.ToString()?.Trim().ToUpper() ?? "";
             
-            // Allow DELETE, but block structural changes
             var forbiddenWords = new[] { "DROP", "TRUNCATE", "ALTER", "GRANT", "REVOKE", "CREATE", "RENAME", "REPLACE" };
 
             foreach (var word in forbiddenWords)
@@ -66,10 +65,10 @@ public class SchemaAiTool : IAiTool
                     return $"Guardrails Alert: Forbidden keyword '{word}' detected. DDL actions are not allowed. Only CRUD (SELECT, INSERT, UPDATE, DELETE) is permitted.";
                 }
             }
-        }
 
-        if (sql.Contains("DELETE") && !sql.Contains("WHERE")) 
-            return "Guardrails Alert: DELETE statement must contain a WHERE clause.";
+            if (sql.Contains("DELETE") && !sql.Contains("WHERE"))
+                return "Guardrails Alert: DELETE statement must contain a WHERE clause.";
+        }
         
         return null;
     }
