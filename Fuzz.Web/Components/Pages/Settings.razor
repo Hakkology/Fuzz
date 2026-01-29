@@ -8,114 +8,151 @@
 @inject ISnackbar Snackbar
 @inject ILogger<Settings> Logger
 
-<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-8">
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
     <MudStack Spacing="6">
-        @* Başlık Bölümü *@
-        <MudPaper Elevation="4" Class="pa-8 blur-card">
-            <MudStack Spacing="4">
-                <MudStack Row="true" AlignItems="AlignItems.Center">
-                    <MudIcon Icon="@Icons.Material.Filled.Settings" Color="Color.Primary" Size="Size.Large" />
-                    <MudText Typo="Typo.h4" Class="gradient-text">AI Ayarları</MudText>
+        @* Header Section *@
+        <MudPaper Elevation="4" Class="pa-8 blur-card header-bg">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="4">
+                <div class="icon-pulse">
+                    <MudIcon Icon="@Icons.Material.Filled.Settings" Color="Color.Primary" Style="font-size: 3rem;" />
+                </div>
+                <MudStack Spacing="0">
+                    <MudText Typo="Typo.h4" Class="gradient-text">Yapay Zeka Yapılandırması</MudText>
+                    <MudText Typo="Typo.body2" Style="color: #B0B0B0;">Servis sağlayıcılarınızı ve modellerinizi buradan yönetin.</MudText>
                 </MudStack>
-                <MudText Typo="Typo.body2" Style="color: #B0B0B0;">
-                    Sisteme OpenAI veya Gemini API anahtarlarınızı ekleyin ve aktif olanı seçin.
-                    <br /><b>Not:</b> Değişiklikler anında veritabanına kaydedilir.
-                </MudText>
             </MudStack>
         </MudPaper>
 
-        @* Yeni Anahtar Ekleme Formu *@
-        <MudPaper Elevation="4" Class="pa-8 blur-card">
-            <MudStack Spacing="4">
-                <MudText Typo="Typo.h6" Color="Color.Primary">Yeni Yapılandırma Ekle</MudText>
+        <MudTabs ActivePanelIndex="_activeTabIndex" ActivePanelIndexChanged="OnTabChanged" Elevation="4" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-8 blur-card mt-4" Class="custom-tabs">
+            @* --- Cloud API Tab --- *@
+            <MudTabPanel Text="Bulut Servisleri (API)" Icon="@Icons.Material.Filled.CloudQueue">
+                <MudText Typo="Typo.h6" Color="Color.Primary" Class="mb-6">Yeni Cloud Yapılandırması</MudText>
                 <MudGrid>
-                    <MudItem xs="12" sm="3">
-                        <MudSelect T="AiProvider" Value="_newConfig.Provider" ValueChanged="OnProviderChanged" Label="Sağlayıcı" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
-                            <MudSelectItem Value="@AiProvider.Gemini">Gemini</MudSelectItem>
+                    <MudItem xs="12" sm="4">
+                        <MudSelect T="AiProvider" Value="_newConfig.Provider" ValueChanged="OnProviderChanged" Label="Servis Sağlayıcı" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+                            <MudSelectItem Value="@AiProvider.Gemini">Google Gemini</MudSelectItem>
                             <MudSelectItem Value="@AiProvider.OpenAI">OpenAI</MudSelectItem>
-                            <MudSelectItem Value="@AiProvider.Local">Yerel (Ollama / v1)</MudSelectItem>
                         </MudSelect>
                     </MudItem>
-                    <MudItem xs="12" sm="3">
-                        <MudStack Row="true" AlignItems="AlignItems.Center">
-                            <MudSelect T="string" @bind-Value="_newConfig.ModelId" Label="Model" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
-                                @foreach (var model in _availableModels)
+                    <MudItem xs="12" sm="4">
+                        <MudSelect T="string" @bind-Value="_newConfig.ModelId" Label="Model Seçimi" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+                            @foreach (var model in _availableModels.Where(m => m.Provider != AiProvider.Local))
+                            {
+                                <MudSelectItem Value="@model.ModelId">@model.DisplayName</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudTextField @bind-Value="_newConfig.ApiKey" Label="API Key" InputType="InputType.Password" Variant="Variant.Outlined" Required="true" 
+                                      HelperText="API anahtarınız güvenli bir şekilde saklanır." />
+                    </MudItem>
+                    <MudItem xs="12" Class="d-flex justify-end">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddConfiguration" Disabled="_isSaving" Class="px-8 py-3 rounded-pill">
+                            Yapılandırmayı Ekle
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudTabPanel>
+
+            @* --- Local AI Tab --- *@
+            <MudTabPanel Text="Yerel Yapay Zeka (Ollama)" Icon="@Icons.Material.Filled.Dns">
+                <MudStack Spacing="6">
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-2">
+                        Yerel modeller için <b>Ollama</b> veya OpenAI uyumlu bir API servisinin çalışıyor olması gereklidir.
+                    </MudAlert>
+
+                    <MudGrid>
+                        <MudItem xs="12" sm="6">
+                            <MudTooltip Text="Varsayılan: http://localhost:11434. Farklı bir port veya adres kullanıyorsanız güncelleyiniz.">
+                                <MudTextField @bind-Value="_newConfig.ApiBase" Label="API Base URL (Ollama / Local)" Placeholder="http://localhost:11434" Variant="Variant.Outlined" Required="true" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Link" />
+                            </MudTooltip>
+                        </MudItem>
+                        <MudItem xs="12" sm="6" Class="d-flex align-center">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.AutoFixHigh" OnClick="RefreshLocalModels" FullWidth="true" Style="height: 56px;" Class="rounded-lg">
+                                Modelleri Otomatik Tara (Ollama)
+                            </MudButton>
+                        </MudItem>
+                        
+                        <MudItem xs="12" sm="6">
+                            <MudSelect T="string" @bind-Value="_newConfig.ModelId" Label="Model Seçimi" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+                                @foreach (var model in _availableModels.Where(m => m.Provider == AiProvider.Local))
                                 {
                                     <MudSelectItem Value="@model.ModelId">@model.DisplayName</MudSelectItem>
                                 }
-                                @if (_newConfig.Provider == AiProvider.Local)
-                                {
-                                    <MudSelectItem Value="@("custom")">-- Özel Model Gir --</MudSelectItem>
-                                }
+                                <MudSelectItem Value="@("custom")">-- Özel Model Gir --</MudSelectItem>
                             </MudSelect>
-                            @if (_newConfig.Provider == AiProvider.Local)
-                            {
-                                <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Primary" OnClick="RefreshLocalModels" Title="Ollama Modellerini Tara" />
-                            }
-                        </MudStack>
-                    </MudItem>
-                    @if (_newConfig.ModelId == "custom")
-                    {
-                        <MudItem xs="12" sm="3">
-                            <MudTextField @bind-Value="_customModelId" Label="Özel Model Adı" Variant="Variant.Outlined" Required="true" />
                         </MudItem>
-                    }
-                    <MudItem xs="12" sm="@(_newConfig.Provider == AiProvider.Local ? 3 : 6)">
-                        <MudTextField @bind-Value="_newConfig.ApiKey" Label="@(_newConfig.Provider == AiProvider.Local ? "API Key (Opsiyonel)" : "API Key")" InputType="InputType.Password" Variant="Variant.Outlined" Required="@(_newConfig.Provider != AiProvider.Local)" />
-                    </MudItem>
-                    @if (_newConfig.Provider == AiProvider.Local)
-                    {
-                        <MudItem xs="12" sm="3">
-                            <MudTextField @bind-Value="_newConfig.ApiBase" Label="API Base URL" Placeholder="http://localhost:11434/v1" Variant="Variant.Outlined" Required="true" />
-                        </MudItem>
-                    }
-                </MudGrid>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddConfiguration" Disabled="_isSaving" FullWidth="false" Class="align-self-end">
-                    Listeye Ekle
-                </MudButton>
-            </MudStack>
-        </MudPaper>
 
-        @* Mevcut Yapılandırmalar Listesi *@
-        <MudPaper Elevation="4" Class="pa-8 blur-card">
-            <MudText Typo="Typo.h6" Color="Color.Primary" Class="mb-4">Mevcut Anahtarlar</MudText>
-            @if (_isLoading)
+                        @if (_newConfig.ModelId == "custom")
+                        {
+                            <MudItem xs="12" sm="6">
+                                <MudTextField @bind-Value="_customModelId" Label="Özel Model ID (Örn: deepseek-r1:7b)" Variant="Variant.Outlined" Required="true" />
+                            </MudItem>
+                        }
+
+                        <MudItem xs="12" sm="6">
+                            <MudTextField @bind-Value="_newConfig.ApiKey" Label="API Key (Gerekliyse)" InputType="InputType.Password" Variant="Variant.Outlined" Placeholder="Genellikle boş bırakılır" />
+                        </MudItem>
+
+                        <MudItem xs="12" Class="d-flex justify-end mt-4">
+                            <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Add" OnClick="AddConfiguration" Disabled="_isSaving" Class="px-8 py-3 rounded-pill" Style="color: #1a1a2e; font-weight: bold;">
+                                Yerel Yapılandırmayı Kaydet
+                            </MudButton>
+                        </MudItem>
+                    </MudGrid>
+                </MudStack>
+            </MudTabPanel>
+        </MudTabs>
+
+        @* Active Configurations List *@
+        <MudPaper Elevation="4" Class="pa-8 blur-card mt-6">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-6">
+                <MudText Typo="Typo.h6" Color="Color.Primary">Mevcut Yapılandırmalarınız</MudText>
+                @if (_isLoading) { <MudProgressCircular Color="Color.Primary" Size="Size.Small" Indeterminate="true" /> }
+            </MudStack>
+
+            @if (!_configs.Any() && !_isLoading)
             {
-                <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
-            }
-            else if (!_configs.Any())
-            {
-                <MudAlert Severity="Severity.Info" Class="blur-alert">Henüz bir API anahtarı eklenmemiş.</MudAlert>
+                <MudAlert Severity="Severity.Info" Class="blur-alert py-6">Henüz bir API anahtarı eklenmemiş. Yukarıdaki sekmelerden birini kullanarak başlayın.</MudAlert>
             }
             else
             {
-                <MudTable Items="_configs" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0" Class="transparent-table">
+                <MudTable Items="_configs" Hover="true" Elevation="0" Class="transparent-table" Loading="_isLoading">
                     <HeaderContent>
-                        <MudTh>Sağlayıcı</MudTh>
-                        <MudTh>Model / Endpoint</MudTh>
-                        <MudTh>API Key</MudTh>
-                        <MudTh>Durum (Aktif)</MudTh>
-                        <MudTh>İşlem</MudTh>
+                        <MudTh>Servis</MudTh>
+                        <MudTh>Model Detayı</MudTh>
+                        <MudTh>Durum</MudTh>
+                        <MudTh Style="width: 150px">Aktif Et</MudTh>
+                        <MudTh Style="width: 50px"></MudTh>
                     </HeaderContent>
                     <RowTemplate>
-                        <MudTd DataLabel="Sağlayıcı">
-                            <MudChip T="string" Color="@GetProviderColor(context.Provider)" Size="Size.Small">@context.Provider</MudChip>
+                        <MudTd>
+                            <MudChip T="string" Color="@GetProviderColor(context.Provider)" Variant="Variant.Text" Icon="@GetProviderIcon(context.Provider)">@context.Provider</MudChip>
                         </MudTd>
-                        <MudTd DataLabel="Model">
+                        <MudTd>
                             <MudStack Spacing="0">
-                                <MudText Typo="Typo.body2">@context.ModelId</MudText>
+                                <MudText Typo="Typo.body1" Style="font-weight: 500">@context.ModelId</MudText>
                                 @if (!string.IsNullOrEmpty(context.ApiBase))
                                 {
                                     <MudText Typo="Typo.caption" Color="Color.Default" Style="opacity: 0.6">@context.ApiBase</MudText>
                                 }
                             </MudStack>
                         </MudTd>
-                        <MudTd DataLabel="API Key">@(string.IsNullOrEmpty(context.ApiKey) ? "Yok" : "*******")</MudTd>
-                        <MudTd DataLabel="Aktif">
+                        <MudTd>
+                            @if (context.IsActive)
+                            {
+                                <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Filled">AKTİF</MudChip>
+                            }
+                            else
+                            {
+                                <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Style="color: #666">Beklemede</MudChip>
+                            }
+                        </MudTd>
+                        <MudTd>
                             <MudSwitch T="bool" Value="context.IsActive" ValueChanged="@((bool val) => SetActive(context))" Color="Color.Primary" UnCheckedColor="Color.Default" />
                         </MudTd>
                         <MudTd>
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteConfig(context.Id))" Size="Size.Small" />
+                            <MudIconButton Icon="@Icons.Material.Filled.DeleteOutline" Color="Color.Error" OnClick="@(() => DeleteConfig(context.Id))" Size="Size.Small" />
                         </MudTd>
                     </RowTemplate>
                 </MudTable>
@@ -125,38 +162,66 @@
 </MudContainer>
 
 <style>
-    .blur-card {
-        background: rgba(26, 26, 46, 0.8) !important;
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 107, 53, 0.2);
-        border-radius: 20px !important;
+    :root {
+        --primary-gradient: linear-gradient(135deg, #FF6B35 0%, #FF8F5E 100%);
+        --glass-bg: rgba(26, 26, 46, 0.85);
+        --glass-border: rgba(255, 107, 53, 0.25);
     }
-    
+
+    .blur-card {
+        background: var(--glass-bg) !important;
+        backdrop-filter: blur(24px) saturate(180%);
+        border: 1px solid var(--glass-border);
+        border-radius: 24px !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .header-bg {
+        background: linear-gradient(225deg, rgba(255, 107, 53, 0.1) 0%, rgba(26, 26, 46, 0.9) 100%) !important;
+    }
+
     .gradient-text {
-        background: linear-gradient(135deg, #FF6B35, #FF8F5E);
+        background: var(--primary-gradient);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        font-weight: 700;
+        font-weight: 800;
+        letter-spacing: -0.5px;
     }
 
-    .transparent-table {
-        background: transparent !important;
+    .custom-tabs .mud-tabs-tab {
+        color: #B0B0B0 !important;
+        font-weight: 600;
+        padding: 16px 24px;
+        transition: color 0.3s;
     }
 
-    .transparent-table th {
+    .custom-tabs .mud-tab-active {
         color: #FF6B35 !important;
-        font-weight: bold;
+        background: rgba(255, 107, 53, 0.05);
     }
 
-    .transparent-table td {
-        color: white !important;
+    .custom-tabs .mud-tabs-slider {
+        background-color: #FF6B35 !important;
+        height: 3px;
+        border-radius: 3px;
     }
 
-    .blur-alert {
-        background: rgba(255, 255, 255, 0.05) !important;
-        color: white !important;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+    .transparent-table { background: transparent !important; }
+    .transparent-table th { color: #FF6B35 !important; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 1px; }
+    .transparent-table td { color: white !important; border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important; padding: 16px 8px !important; }
+
+    .icon-pulse {
+        animation: pulse 2s infinite;
     }
+
+    @@keyframes pulse {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.05); opacity: 0.8; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+
+    .align-self-end { align-self: flex-end; }
+    .rounded-pill { border-radius: 50px !important; }
 </style>
 
 @code {
@@ -168,6 +233,8 @@
     private string _userId = "";
     private bool _isLoading = true;
     private bool _isSaving = false;
+    private int _activeTabIndex = 0;
+    private AiProvider _lastCloudProvider = AiProvider.Gemini;
 
     private Color GetProviderColor(AiProvider provider) => provider switch
     {
@@ -175,6 +242,14 @@
         AiProvider.OpenAI => Color.Success,
         AiProvider.Local => Color.Warning,
         _ => Color.Default
+    };
+
+    private string GetProviderIcon(AiProvider provider) => provider switch
+    {
+        AiProvider.Gemini => Icons.Material.Filled.AutoAwesome,
+        AiProvider.OpenAI => Icons.Material.Filled.Bolt,
+        AiProvider.Local => Icons.Material.Filled.SettingsInputHdmi,
+        _ => Icons.Material.Filled.QuestionMark
     };
 
     protected override async Task OnInitializedAsync()
@@ -214,17 +289,34 @@
         }
     }
 
-    private async Task OnProviderChanged(AiProvider provider)
+    private async Task OnTabChanged(int index)
     {
-        _newConfig.Provider = provider;
-        if (provider == AiProvider.Local)
+        _activeTabIndex = index;
+        if (index == 1) // Local Tab
+        {
+            _newConfig.Provider = AiProvider.Local;
+        }
+        else // Cloud Tab
+        {
+            _newConfig.Provider = _lastCloudProvider;
+        }
+        
+        UpdateAvailableModels();
+
+        if (index == 1)
         {
             await RefreshLocalModels();
         }
-        else
+    }
+
+    private async Task OnProviderChanged(AiProvider provider)
+    {
+        _newConfig.Provider = provider;
+        if (provider != AiProvider.Local)
         {
-            UpdateAvailableModels();
+            _lastCloudProvider = provider;
         }
+        UpdateAvailableModels();
     }
 
     private async Task RefreshLocalModels()
