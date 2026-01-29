@@ -1,0 +1,125 @@
+@using Fuzz.Domain.Entities
+@using Fuzz.Domain.Data
+@using Fuzz.Domain.Services.Interfaces
+@inject IAiConfigService ConfigService
+@inject ISnackbar Snackbar
+@inject ILogger<AgentSoundSettings> Logger
+
+<MudText Typo="Typo.h6" Class="mb-4">Music & Sound Generation Models</MudText>
+<MudText Typo="Typo.body2" Class="mb-6">Configure agents capable of generating music from text (e.g. LlaMusic via Ollama).</MudText>
+
+<MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="mt-4" ActivePanelIndexChanged="OnInnerTabChanged" Color="Color.Surface" SliderColor="Color.Tertiary">
+    <MudTabPanel Text="Cloud API" Icon="@Icons.Material.Filled.Cloud" Disabled="true">
+        <MudAlert Severity="Severity.Warning">Cloud based sound generation (Suno/Udio API) coming soon.</MudAlert>
+    </MudTabPanel>
+    
+    <MudTabPanel Text="Local (Ollama)" Icon="@Icons.Material.Filled.Computer">
+            <MudGrid Spacing="3" Class="mt-2">
+            <MudItem xs="12" sm="12">
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Text" NoIcon="true" Class="mb-2">Use models like <b>llamusic</b> or other music-finetuned models.</MudAlert>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField @bind-Value="_newConfig.ApiBase" Label="Ollama URL" Placeholder="http://localhost:11434" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Link" />
+            </MudItem>
+            <MudItem xs="12" sm="6" Class="d-flex align-center">
+                <MudButton Variant="Variant.Outlined" Color="Color.Tertiary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="RefreshLocalModels" FullWidth="true" Style="height: 56px;">
+                    Refresh Local Models
+                </MudButton>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="string" @bind-Value="_newConfig.ModelId" Label="Select Sound Model" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+                    @foreach (var model in _availableModels)
+                    {
+                        <MudSelectItem Value="@model.ModelId">@model.DisplayName</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12" Class="d-flex justify-end">
+                <MudButton Variant="Variant.Filled" Color="Color.Tertiary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddConfiguration" Disabled="_isSaving" Size="Size.Large" Class="px-8 rounded-pill">
+                    Add Local Sound Agent
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+</MudTabs>
+
+@code {
+    [Parameter] public string UserId { get; set; } = "";
+    [Parameter] public List<FuzzAiModel> AllModels { get; set; } = new();
+    [Parameter] public EventCallback OnConfigAdded { get; set; }
+    [Parameter] public EventCallback OnModelsUpdated { get; set; }
+
+    private FuzzAiConfig _newConfig = new() { Provider = AiProvider.Local, ModelId = "" };
+    private List<FuzzAiModel> _availableModels = new();
+    private bool _isSaving = false;
+
+    protected override void OnParametersSet()
+    {
+        UpdateAvailableModels();
+    }
+
+    private void OnInnerTabChanged(int index)
+    {
+        UpdateAvailableModels();
+    }
+
+    private void UpdateAvailableModels()
+    {
+        _availableModels = AllModels
+            .Where(m => m.Provider == AiProvider.Local && m.Capabilities.HasFlag(AiCapabilities.Sound))
+            .ToList();
+
+        if (!_availableModels.Any(m => m.ModelId == _newConfig.ModelId))
+        {
+            _newConfig.ModelId = _availableModels.FirstOrDefault()?.ModelId ?? "";
+        }
+    }
+
+    private async Task RefreshLocalModels()
+    {
+        try
+        {
+            var localModels = await ConfigService.GetLocalModelsAsync(_newConfig.ApiBase);
+            await OnModelsUpdated.InvokeAsync(); // Notify parent
+            
+            if (localModels.Any())
+                Snackbar.Add($"Local models synchronized: {localModels.Count} found.", Severity.Success);
+            else
+                Snackbar.Add("No local models found.", Severity.Info);
+        }
+        catch (Exception ex)
+        {
+             Logger.LogWarning("Error refreshing local models: {Message}", ex.Message);
+        }
+    }
+
+    private async Task AddConfiguration()
+    {
+        if (string.IsNullOrEmpty(UserId)) return;
+
+        _isSaving = true;
+        try
+        {
+            _newConfig.UserId = UserId;
+            _newConfig.UpdatedAt = DateTime.UtcNow;
+            _newConfig.Mode = AiCapabilities.Sound; 
+
+            await ConfigService.AddConfigAsync(_newConfig);
+            Snackbar.Add("Sound Agent configured successfully.", Severity.Success);
+            
+            _newConfig = new FuzzAiConfig { Provider = AiProvider.Local, ModelId = "" }; // Reset
+            UpdateAvailableModels();
+            
+            await OnConfigAdded.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+}
