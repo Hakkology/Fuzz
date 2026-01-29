@@ -29,23 +29,40 @@
             <MudStack Spacing="4">
                 <MudText Typo="Typo.h6" Color="Color.Primary">Yeni Yapılandırma Ekle</MudText>
                 <MudGrid>
-                    <MudItem xs="12" sm="4">
-                        <MudSelect T="AiProvider" @bind-Value="_newConfig.Provider" Label="Sağlayıcı" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
+                    <MudItem xs="12" sm="3">
+                        <MudSelect T="AiProvider" Value="_newConfig.Provider" ValueChanged="OnProviderChanged" Label="Sağlayıcı" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
                             <MudSelectItem Value="@AiProvider.Gemini">Gemini</MudSelectItem>
                             <MudSelectItem Value="@AiProvider.OpenAI">OpenAI</MudSelectItem>
+                            <MudSelectItem Value="@AiProvider.Local">Yerel (Ollama / v1)</MudSelectItem>
                         </MudSelect>
                     </MudItem>
-                    <MudItem xs="12" sm="4">
+                    <MudItem xs="12" sm="3">
                         <MudSelect T="string" @bind-Value="_newConfig.ModelId" Label="Model" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter">
-                            @foreach (var model in GetAvailableModels(_newConfig.Provider))
+                            @foreach (var model in _availableModels)
                             {
-                                <MudSelectItem Value="@model">@model</MudSelectItem>
+                                <MudSelectItem Value="@model.ModelId">@model.DisplayName</MudSelectItem>
+                            }
+                            @if (_newConfig.Provider == AiProvider.Local)
+                            {
+                                <MudSelectItem Value="@("custom")">-- Özel Model Gir --</MudSelectItem>
                             }
                         </MudSelect>
                     </MudItem>
-                    <MudItem xs="12" sm="4">
-                        <MudTextField @bind-Value="_newConfig.ApiKey" Label="API Key" InputType="InputType.Password" Variant="Variant.Outlined" Required="true" />
+                    @if (_newConfig.ModelId == "custom")
+                    {
+                        <MudItem xs="12" sm="3">
+                            <MudTextField @bind-Value="_customModelId" Label="Özel Model Adı" Variant="Variant.Outlined" Required="true" />
+                        </MudItem>
+                    }
+                    <MudItem xs="12" sm="@(_newConfig.Provider == AiProvider.Local ? 3 : 6)">
+                        <MudTextField @bind-Value="_newConfig.ApiKey" Label="@(_newConfig.Provider == AiProvider.Local ? "API Key (Opsiyonel)" : "API Key")" InputType="InputType.Password" Variant="Variant.Outlined" Required="@(_newConfig.Provider != AiProvider.Local)" />
                     </MudItem>
+                    @if (_newConfig.Provider == AiProvider.Local)
+                    {
+                        <MudItem xs="12" sm="3">
+                            <MudTextField @bind-Value="_newConfig.ApiBase" Label="API Base URL" Placeholder="http://localhost:11434/v1" Variant="Variant.Outlined" Required="true" />
+                        </MudItem>
+                    }
                 </MudGrid>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddConfiguration" Disabled="_isSaving" FullWidth="false" Class="align-self-end">
                     Listeye Ekle
@@ -69,17 +86,25 @@
                 <MudTable Items="_configs" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0" Class="transparent-table">
                     <HeaderContent>
                         <MudTh>Sağlayıcı</MudTh>
-                        <MudTh>Model</MudTh>
+                        <MudTh>Model / Endpoint</MudTh>
                         <MudTh>API Key</MudTh>
                         <MudTh>Durum (Aktif)</MudTh>
                         <MudTh>İşlem</MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd DataLabel="Sağlayıcı">
-                            <MudChip T="string" Color="@(context.Provider == AiProvider.Gemini ? Color.Info : Color.Success)" Size="Size.Small">@context.Provider</MudChip>
+                            <MudChip T="string" Color="@GetProviderColor(context.Provider)" Size="Size.Small">@context.Provider</MudChip>
                         </MudTd>
-                        <MudTd DataLabel="Model">@context.ModelId</MudTd>
-                        <MudTd DataLabel="API Key">*******</MudTd>
+                        <MudTd DataLabel="Model">
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.body2">@context.ModelId</MudText>
+                                @if (!string.IsNullOrEmpty(context.ApiBase))
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Default" Style="opacity: 0.6">@context.ApiBase</MudText>
+                                }
+                            </MudStack>
+                        </MudTd>
+                        <MudTd DataLabel="API Key">@(string.IsNullOrEmpty(context.ApiKey) ? "Yok" : "*******")</MudTd>
                         <MudTd DataLabel="Aktif">
                             <MudSwitch T="bool" Value="context.IsActive" ValueChanged="@((val) => SetActive(context))" Color="Color.Primary" UnCheckedColor="Color.Default" />
                         </MudTd>
@@ -130,18 +155,21 @@
 
 @code {
     private List<FuzzAiConfig> _configs = new();
-    private FuzzAiConfig _newConfig = new() { Provider = AiProvider.Gemini, ModelId = "gemini-3-flash-preview" };
+    private List<FuzzAiModel> _allModels = new();
+    private List<FuzzAiModel> _availableModels = new();
+    private FuzzAiConfig _newConfig = new() { Provider = AiProvider.Gemini, ModelId = "" };
+    private string _customModelId = "";
     private string _userId = "";
     private bool _isLoading = true;
     private bool _isSaving = false;
 
-    private readonly Dictionary<AiProvider, string[]> _providerModels = new()
+    private Color GetProviderColor(AiProvider provider) => provider switch
     {
-        { AiProvider.Gemini, new[] { "gemini-3-flash-preview", "gemini-1.5-flash", "gemini-1.5-pro" } },
-        { AiProvider.OpenAI, new[] { "gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo" } }
+        AiProvider.Gemini => Color.Info,
+        AiProvider.OpenAI => Color.Success,
+        AiProvider.Local => Color.Warning,
+        _ => Color.Default
     };
-
-    private string[] GetAvailableModels(AiProvider provider) => _providerModels.GetValueOrDefault(provider, Array.Empty<string>());
 
     protected override async Task OnInitializedAsync()
     {
@@ -155,13 +183,36 @@
                 Logger.LogWarning("Ayarlar sayfası: Kullanıcı ID bulunamadı.");
             }
             
+            await LoadModels();
             await LoadConfigs();
+            UpdateAvailableModels();
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Ayarlar yüklenirken hata oluştu.");
             Snackbar.Add("Sistem yüklenirken bir hata oluştu.", Severity.Error);
         }
+    }
+
+    private async Task LoadModels()
+    {
+        using var db = await DbFactory.CreateDbContextAsync();
+        _allModels = await db.AiModels.OrderBy(m => m.DisplayName).ToListAsync();
+    }
+
+    private void UpdateAvailableModels()
+    {
+        _availableModels = _allModels.Where(m => m.Provider == _newConfig.Provider).ToList();
+        if (!_availableModels.Any(m => m.ModelId == _newConfig.ModelId))
+        {
+            _newConfig.ModelId = _availableModels.FirstOrDefault()?.ModelId ?? "";
+        }
+    }
+
+    private void OnProviderChanged(AiProvider provider)
+    {
+        _newConfig.Provider = provider;
+        UpdateAvailableModels();
     }
 
     private async Task LoadConfigs()
@@ -190,19 +241,15 @@
 
     private async Task AddConfiguration()
     {
-        // Sanitize & Validate
-        _newConfig.ApiKey = _newConfig.ApiKey?.Trim() ?? "";
-        _newConfig.ModelId = _newConfig.ModelId?.Trim() ?? "";
-
-        if (string.IsNullOrEmpty(_newConfig.ApiKey))
+        if (string.IsNullOrEmpty(_userId))
         {
-            Snackbar.Add("API Anahtarı boş olamaz.", Severity.Warning);
+            Snackbar.Add("Kullanıcı oturumu bulunamadı.", Severity.Error);
             return;
         }
 
-        if (string.IsNullOrEmpty(_userId))
+        if (_newConfig.ModelId == "custom" && string.IsNullOrWhiteSpace(_customModelId))
         {
-            Snackbar.Add("Kullanıcı oturumu bulunamadı. Lütfen tekrar giriş yapın.", Severity.Error);
+            Snackbar.Add("Lütfen özel model adını girin.", Severity.Warning);
             return;
         }
 
@@ -213,18 +260,45 @@
         {
             using var db = await DbFactory.CreateDbContextAsync();
             
+            // Eğer özel model girildiyse, önce modellere ekle (yoksa)
+            if (_newConfig.ModelId == "custom")
+            {
+                var existingModel = await db.AiModels.FirstOrDefaultAsync(m => m.Provider == _newConfig.Provider && m.ModelId == _customModelId);
+                if (existingModel == null)
+                {
+                    var newModel = new FuzzAiModel 
+                    { 
+                        Provider = _newConfig.Provider, 
+                        ModelId = _customModelId, 
+                        DisplayName = _customModelId + " (Özel)",
+                        IsCustom = true 
+                    };
+                    db.AiModels.Add(newModel);
+                    await db.SaveChangesAsync();
+                    
+                    // Listeleri güncelle
+                    await LoadModels();
+                    UpdateAvailableModels();
+                }
+                _newConfig.ModelId = _customModelId;
+            }
+
             _newConfig.UserId = _userId;
             _newConfig.UpdatedAt = DateTime.UtcNow;
-            _newConfig.IsActive = !_configs.Any(); // İlk eklenen otomatik aktif olsun
+            _newConfig.IsActive = !_configs.Any();
 
             db.AiConfigurations.Add(_newConfig);
             await db.SaveChangesAsync();
-            
-            Logger.LogInformation("Yeni AI yapılandırması kaydedildi. Provider: {Provider}, User: {UserId}", _newConfig.Provider, _userId);
 
-            _newConfig = new FuzzAiConfig { Provider = AiProvider.Gemini, ModelId = "gemini-3-flash-preview" };
-            await LoadConfigs();
             Snackbar.Add("Yapılandırma başarıyla eklendi.", Severity.Success);
+            
+            // Reset form
+            var currentProvider = _newConfig.Provider;
+            _newConfig = new FuzzAiConfig { Provider = currentProvider, ModelId = "" };
+            UpdateAvailableModels();
+            _customModelId = "";
+            
+            await LoadConfigs();
         }
         catch (Exception ex)
         {
@@ -260,7 +334,6 @@
             Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
         }
     }
-
 
     private async Task DeleteConfig(int id)
     {

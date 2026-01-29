@@ -3,6 +3,7 @@ using System;
 using Fuzz.Domain.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Fuzz.Domain.Migrations
 {
     [DbContext(typeof(FuzzDbContext))]
-    partial class FuzzDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260129065320_AddApiBaseToAiConfig")]
+    partial class AddApiBaseToAiConfig
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -58,36 +61,6 @@ namespace Fuzz.Domain.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("FuzzAIConfigs", (string)null);
-                });
-
-            modelBuilder.Entity("Fuzz.Domain.Entities.FuzzAiModel", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DisplayName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsCustom")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("ModelId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("Provider")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("AiModels");
                 });
 
             modelBuilder.Entity("Fuzz.Domain.Entities.FuzzTodo", b =>

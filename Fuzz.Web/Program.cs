@@ -57,8 +57,9 @@ builder.Services.AddScoped<IAiTool, SqlAiTool>();
 builder.Services.AddScoped<IAiTool, TimeAiTool>();
 
 // AI Services
-builder.Services.AddScoped<GeminiAgentService>();
-builder.Services.AddScoped<OpenAiAgentService>();
+builder.Services.AddKeyedScoped<IFuzzAgentService, GeminiAgentService>(AiProvider.Gemini);
+builder.Services.AddKeyedScoped<IFuzzAgentService, OpenAiAgentService>(AiProvider.OpenAI);
+builder.Services.AddKeyedScoped<IFuzzAgentService, LocalAgentService>(AiProvider.Local);
 builder.Services.AddScoped<IFuzzAgentService, AgentDispatcherService>();
 
 builder.Services.AddScoped<IFuzzSeedService, FuzzSeedService>();
