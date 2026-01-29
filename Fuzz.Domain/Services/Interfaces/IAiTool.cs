@@ -1,6 +1,6 @@
 using Google.GenAI.Types;
 
-namespace Fuzz.Domain.Ai;
+namespace Fuzz.Domain.Services.Interfaces;
 
 public interface IAiTool
 {
