@@ -25,6 +25,11 @@
             <MudNavLink Href="Settings" Icon="@Icons.Material.Filled.Settings">
                 AI Ayarları
             </MudNavLink>
+            <AuthorizeView Roles="Admin" Context="AdminContext">
+                <MudNavLink Href="Admin/Models" Icon="@Icons.Material.Filled.AdminPanelSettings">
+                    Model Yönetimi
+                </MudNavLink>
+            </AuthorizeView>
             <MudNavLink Href="Account/Manage" Icon="@Icons.Material.Filled.ManageAccounts">
                 Profil Ayarları
             </MudNavLink>

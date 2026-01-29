@@ -1,0 +1,119 @@
+@page "/Admin/Models"
+@using Fuzz.Domain.Entities
+@using Fuzz.Domain.Services
+@using Microsoft.AspNetCore.Authorization
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+@inject IAiConfigService ConfigService
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
+    <MudStack Spacing="6">
+        <MudText Typo="Typo.h4" Class="gradient-text">Model Yönetimi (Admin)</MudText>
+
+        <MudPaper Elevation="4" Class="pa-8 blur-card">
+            <MudText Typo="Typo.h6" Color="Color.Primary" Class="mb-4">Yeni Global Model Ekle</MudText>
+            <MudGrid>
+                <MudItem xs="12" sm="3">
+                    <MudSelect T="AiProvider" @bind-Value="_newModel.Provider" Label="Sağlayıcı" Variant="Variant.Outlined">
+                        <MudSelectItem Value="@AiProvider.Gemini">Gemini</MudSelectItem>
+                        <MudSelectItem Value="@AiProvider.OpenAI">OpenAI</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="3">
+                    <MudTextField @bind-Value="_newModel.ModelId" Label="Model ID (Örn: gpt-5)" Variant="Variant.Outlined" Required="true" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudTextField @bind-Value="_newModel.DisplayName" Label="Görünen Ad (Örn: GPT-5 Next Gen)" Variant="Variant.Outlined" Required="true" />
+                </MudItem>
+                <MudItem xs="12" sm="2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveModel" FullWidth="true" Style="height: 56px">Ekle</MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        <MudPaper Elevation="4" Class="pa-8 blur-card">
+            <MudTable Items="_models" Hover="true" Elevation="0" Class="transparent-table">
+                <HeaderContent>
+                    <MudTh>Sağlayıcı</MudTh>
+                    <MudTh>Model ID</MudTh>
+                    <MudTh>Görünen Ad</MudTh>
+                    <MudTh>Tür</MudTh>
+                    <MudTh>İşlem</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>
+                        <MudChip T="string" Color="@GetColor(context.Provider)" Size="Size.Small">@context.Provider</MudChip>
+                    </MudTd>
+                    <MudTd>@context.ModelId</MudTd>
+                    <MudTd>@context.DisplayName</MudTd>
+                    <MudTd>
+                        @(context.IsCustom ? "Özel" : "Global")
+                    </MudTd>
+                    <MudTd>
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteModel(context.Id))" />
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
+    </MudStack>
+</MudContainer>
+
+<style>
+    .blur-card {
+        background: rgba(26, 26, 46, 0.8) !important;
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 107, 53, 0.2);
+        border-radius: 20px !important;
+    }
+    .gradient-text {
+        background: linear-gradient(135deg, #FF6B35, #FF8F5E);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 700;
+    }
+    .transparent-table { background: transparent !important; }
+    .transparent-table th { color: #FF6B35 !important; font-weight: bold; }
+    .transparent-table td { color: white !important; }
+</style>
+
+@code {
+    private List<FuzzAiModel> _models = new();
+    private FuzzAiModel _newModel = new() { Provider = AiProvider.Gemini };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshList();
+    }
+
+    private async Task RefreshList()
+    {
+        _models = await ConfigService.GetModelsAsync();
+    }
+
+    private Color GetColor(AiProvider p) => p switch {
+        AiProvider.Gemini => Color.Info,
+        AiProvider.OpenAI => Color.Success,
+        _ => Color.Default
+    };
+
+    private async Task SaveModel()
+    {
+        if (string.IsNullOrWhiteSpace(_newModel.ModelId) || string.IsNullOrWhiteSpace(_newModel.DisplayName)) {
+            Snackbar.Add("Lütfen tüm alanları doldurun.", Severity.Warning);
+            return;
+        }
+
+        await ConfigService.AddModelAsync(_newModel);
+        Snackbar.Add("Model başarıyla eklendi.", Severity.Success);
+        _newModel = new FuzzAiModel { Provider = _newModel.Provider };
+        await RefreshList();
+    }
+
+    private async Task DeleteModel(int id)
+    {
+        await ConfigService.DeleteModelAsync(id);
+        Snackbar.Add("Model silindi.", Severity.Warning);
+        await RefreshList();
+    }
+}
