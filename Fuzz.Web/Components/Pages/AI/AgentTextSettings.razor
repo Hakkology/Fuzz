@@ -82,12 +82,13 @@
         UpdateAvailableModels();
     }
 
-    private void OnInnerTabChanged(int index)
+    private async Task OnInnerTabChanged(int index)
     {
         // 0 = Cloud, 1 = Local
         if (index == 1) 
         {
             _newConfig.Provider = AiProvider.Local;
+            await RefreshLocalModels();
         }
         else 
         {
@@ -140,10 +141,13 @@
             if (localModels.Any())
                 Snackbar.Add($"Local models synchronized: {localModels.Count} found.", Severity.Success);
             else
-                Snackbar.Add("No local models found.", Severity.Info);
+                Snackbar.Add("No local models found on the provided Ollama URL.", Severity.Warning);
+
+            UpdateAvailableModels();
         }
         catch (Exception ex)
         {
+             Snackbar.Add($"Connection error: {ex.Message}", Severity.Error);
              Logger.LogWarning("Error refreshing local models: {Message}", ex.Message);
         }
     }

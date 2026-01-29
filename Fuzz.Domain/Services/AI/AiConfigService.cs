@@ -15,7 +15,7 @@ public class AiConfigService : IAiConfigService
     private readonly ILogger<AiConfigService> _logger;
 
     private const string DefaultOllamaUrl = "http://localhost:11434";
-    private const int OllamaTimeoutSeconds = 3;
+    private const int OllamaTimeoutSeconds = 10;
 
     public AiConfigService(
         IDbContextFactory<FuzzDbContext> dbFactory, 
@@ -138,9 +138,15 @@ public class AiConfigService : IAiConfigService
         if (ollamaModels == null) return new();
 
         using var db = await _dbFactory.CreateDbContextAsync();
-        var existingModels = await db.FuzzAiModels
+        
+        // Use a group by to handle potential duplicates in DB gracefully
+        var existingList = await db.FuzzAiModels
             .Where(m => m.Provider == AiProvider.Local)
-            .ToDictionaryAsync(m => m.ModelId.ToLower().Trim());
+            .ToListAsync();
+
+        var existingModels = existingList
+            .GroupBy(m => m.ModelId.ToLower().Trim())
+            .ToDictionary(g => g.Key, g => g.First());
 
         var result = new List<FuzzAiModel>();
 
@@ -160,13 +166,21 @@ public class AiConfigService : IAiConfigService
                     Provider = AiProvider.Local,
                     ModelId = model.Name,
                     DisplayName = $"{model.Name} (Local)",
-                    IsCustom = true 
+                    IsCustom = true,
+                    Capabilities = caps 
                 };
                 db.FuzzAiModels.Add(entity);
+                _logger.LogInformation("🆕 Discovered new local model: {ModelId} with caps {Caps}", model.Name, caps);
             }
-
-            // Sync capabilities
-            entity.Capabilities = caps; 
+            else
+            {
+                // Ensure name and capabilities are synced
+                entity.Capabilities = caps;
+                if (string.IsNullOrEmpty(entity.DisplayName))
+                {
+                    entity.DisplayName = $"{model.Name} (Local)";
+                }
+            }
 
             result.Add(entity);
         }
@@ -193,8 +207,21 @@ public class AiConfigService : IAiConfigService
 
     private static bool IsSoundModel(OllamaModel model)
     {
-        var lower = model.Name.ToLower();
-        return lower.Contains("music") || lower.Contains("sound") || lower.Contains("llamusic");
+        var lowerName = model.Name.ToLower();
+        var lowerFamily = model.Details?.Family?.ToLower() ?? "";
+        var families = model.Details?.Families?.Select(f => f.ToLower()) ?? Enumerable.Empty<string>();
+        
+        bool match = lowerName.Contains("music") || 
+                     lowerName.Contains("sound") || 
+                     lowerName.Contains("audio") ||
+                     lowerName.Contains("voice") ||
+                     lowerName.Contains("llamusic") ||
+                     lowerFamily.Contains("music") ||
+                     lowerFamily.Contains("sound") ||
+                     lowerFamily.Contains("audio") ||
+                     families.Any(f => f.Contains("music") || f.Contains("sound") || f.Contains("audio"));
+
+        return match;
     }
 
     public async Task AddModelAsync(FuzzAiModel model)

@@ -110,6 +110,10 @@ public class FuzzSeedService : IFuzzSeedService
                 // OpenAI - Open Weight (Simulated)
                 new() { Provider = AiProvider.OpenAI, ModelId = "gpt-oss-120b", DisplayName = "GPT-OSS 120B", Capabilities = AiCapabilities.Text },
                 new() { Provider = AiProvider.OpenAI, ModelId = "gpt-oss-20b", DisplayName = "GPT-OSS 20B", Capabilities = AiCapabilities.Text },
+
+                // ElevenLabs (Vocal Agents)
+                new() { Provider = AiProvider.ElevenLabs, ModelId = "TxGEqnHWf9848Y7l7R7i", DisplayName = "ElevenLabs - Josh (Vocal)", Capabilities = AiCapabilities.Sound },
+                new() { Provider = AiProvider.ElevenLabs, ModelId = "EXAVITQu4vr4xnSDxMaL", DisplayName = "ElevenLabs - Bella (Vocal)", Capabilities = AiCapabilities.Sound }
             };
 
             foreach (var model in defaultModels)
