@@ -10,27 +10,28 @@
 
 <PageTitle>Profile</PageTitle>
 
-<h3>Profile</h3>
-<StatusMessage />
-
-<div class="row">
-    <div class="col-xl-6">
-        <EditForm Model="Input" FormName="profile" OnValidSubmit="OnValidSubmitAsync" method="post">
-            <DataAnnotationsValidator />
-            <ValidationSummary class="text-danger" role="alert" />
-            <div class="form-floating mb-3">
-                <input type="text" value="@username" id="username" class="form-control" placeholder="Choose your username." disabled />
-                <label for="username" class="form-label">Username</label>
-            </div>
-            <div class="form-floating mb-3">
-                <InputText @bind-Value="Input.PhoneNumber" id="Input.PhoneNumber" class="form-control" placeholder="Enter your phone number" />
-                <label for="Input.PhoneNumber" class="form-label">Phone number</label>
-                <ValidationMessage For="() => Input.PhoneNumber" class="text-danger" />
-            </div>
-            <button type="submit" class="w-100 btn btn-lg btn-primary">Save</button>
-        </EditForm>
-    </div>
-</div>
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
+    <StatusMessage />
+    
+    <EditForm Model="Input" FormName="profile" OnValidSubmit="OnValidSubmitAsync" method="post">
+        <DataAnnotationsValidator />
+        
+        <MudCard Elevation="4" Class="pa-6">
+            <MudStack Spacing="4">
+                <MudText Typo="Typo.h5" GutterBottom="true" Color="Color.Primary" Style="font-weight: 700;">Profile</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-2">Manage your account details below.</MudText>
+                
+                <MudTextField T="string" Value="@username" Label="Username" ReadOnly="true" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Person" />
+                
+                <MudTextField @bind-Value="Input.PhoneNumber" For="@(() => Input.PhoneNumber)" Label="Phone number" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Phone" />
+                
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true" Class="mt-4">
+                    Save Changes
+                </MudButton>
+            </MudStack>
+        </MudCard>
+    </EditForm>
+</MudContainer>
 
 @code {
     private FuzzUser? user;
@@ -89,4 +90,3 @@
         public string? PhoneNumber { get; set; }
     }
 }
-

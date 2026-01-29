@@ -35,7 +35,7 @@ public class AiConfigService : IAiConfigService
         return url.EndsWith("/v1") ? url[..^3] : url;
     }
 
-    private async Task<HashSet<string>?> FetchOllamaModelIdsAsync(string? apiBase)
+    private async Task<List<OllamaModel>?> FetchOllamaModelsAsync(string? apiBase)
     {
         try
         {
@@ -44,7 +44,7 @@ public class AiConfigService : IAiConfigService
             client.Timeout = TimeSpan.FromSeconds(OllamaTimeoutSeconds);
 
             var response = await client.GetFromJsonAsync<OllamaTagsResponse>($"{baseUrl}/api/tags");
-            return response?.Models?.Select(m => m.Name.ToLower().Trim()).ToHashSet();
+            return response?.Models;
         }
         catch (Exception ex)
         {
@@ -95,8 +95,17 @@ public class AiConfigService : IAiConfigService
     public async Task SetActiveConfigAsync(int id, string userId)
     {
         using var db = await _dbFactory.CreateDbContextAsync();
-        var configs = await db.AiConfigurations.Where(c => c.UserId == userId).ToListAsync();
-        configs.ForEach(c => c.IsActive = c.Id == id);
+        var targetConfig = await db.AiConfigurations.FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId);
+        if (targetConfig == null) return;
+
+        // Deactivate other configs of the same type (Text vs Visual)
+        var sameTypeConfigs = await db.AiConfigurations
+            .Where(c => c.UserId == userId && c.IsVisualRecognition == targetConfig.IsVisualRecognition)
+            .ToListAsync();
+            
+        sameTypeConfigs.ForEach(c => c.IsActive = false);
+        
+        targetConfig.IsActive = true;
         await db.SaveChangesAsync();
     }
 
@@ -119,7 +128,7 @@ public class AiConfigService : IAiConfigService
     {
         var newModels = new List<FuzzAiModel>();
         
-        var ollamaModels = await FetchOllamaModelIdsAsync(apiBase);
+        var ollamaModels = await FetchOllamaModelsAsync(apiBase);
         if (ollamaModels == null) return newModels;
 
         using var db = await _dbFactory.CreateDbContextAsync();
@@ -128,14 +137,21 @@ public class AiConfigService : IAiConfigService
             .Select(m => m.ModelId.ToLower().Trim())
             .ToHashSetAsync();
 
-        foreach (var modelId in ollamaModels.Where(id => !existingIds.Contains(id)))
+        foreach (var model in ollamaModels)
         {
+            var modelId = model.Name.ToLower().Trim();
+            if (existingIds.Contains(modelId)) continue;
+
+            bool isVisual = IsVisualModel(model);
+
             var entity = new FuzzAiModel
             {
                 Provider = AiProvider.Local,
-                ModelId = modelId,
-                DisplayName = $"{modelId} (Local)",
-                IsCustom = true
+                ModelId = model.Name,
+                DisplayName = $"{model.Name} (Local)",
+                IsCustom = true,
+                IsVisualRecognition = isVisual,
+                IsTextCapable = !isVisual // Strict separation for local: if it's visual, assume it's NOT for text only (or at least hide it)
             };
             newModels.Add(entity);
             db.FuzzAiModels.Add(entity);
@@ -143,6 +159,19 @@ public class AiConfigService : IAiConfigService
 
         if (newModels.Any()) await db.SaveChangesAsync();
         return newModels;
+    }
+
+    private static bool IsVisualModel(OllamaModel model)
+    {
+        // 1. Check metadata families for 'clip' or 'vision'
+        if (model.Details?.Families != null && model.Details.Families.Any(f => f.Contains("clip") || f.Contains("vision")))
+        {
+            return true;
+        }
+        
+        // 2. Fallback to name heuristic
+        var lower = model.Name.ToLower();
+        return lower.Contains("llava") || lower.Contains("vision") || lower.Contains("moondream") || lower.Contains("bakllava");
     }
 
     public async Task AddModelAsync(FuzzAiModel model)
@@ -181,8 +210,10 @@ public class AiConfigService : IAiConfigService
 
     public async Task<int> CleanupMissingLocalModelsAsync(string userId, string? apiBase = null)
     {
-        var ollamaModels = await FetchOllamaModelIdsAsync(apiBase);
+        var ollamaModels = await FetchOllamaModelsAsync(apiBase);
         if (ollamaModels == null) return 0;
+        
+        var availableIds = ollamaModels.Select(m => m.Name.ToLower().Trim()).ToHashSet();
 
         using var db = await _dbFactory.CreateDbContextAsync();
         int deletedCount = 0;
@@ -192,7 +223,7 @@ public class AiConfigService : IAiConfigService
             .Where(c => c.UserId == userId && c.Provider == AiProvider.Local)
             .ToListAsync();
 
-        foreach (var config in localConfigs.Where(c => !ollamaModels.Contains(c.ModelId.ToLower().Trim())))
+        foreach (var config in localConfigs.Where(c => !availableIds.Contains(c.ModelId.ToLower().Trim())))
         {
             db.AiConfigurations.Remove(config);
             deletedCount++;
@@ -203,7 +234,7 @@ public class AiConfigService : IAiConfigService
             .Where(m => m.Provider == AiProvider.Local)
             .ToListAsync();
 
-        db.FuzzAiModels.RemoveRange(localModels.Where(m => !ollamaModels.Contains(m.ModelId.ToLower().Trim())));
+        db.FuzzAiModels.RemoveRange(localModels.Where(m => !availableIds.Contains(m.ModelId.ToLower().Trim())));
 
         await db.SaveChangesAsync();
         return deletedCount;

@@ -3,6 +3,7 @@ using System;
 using Fuzz.Domain.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Fuzz.Domain.Migrations
 {
     [DbContext(typeof(FuzzDbContext))]
-    partial class FuzzDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260129133945_AddIsTextCapableToModel")]
+    partial class AddIsTextCapableToModel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

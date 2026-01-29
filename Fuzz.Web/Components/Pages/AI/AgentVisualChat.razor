@@ -25,28 +25,30 @@
             </MudChip>
         </div>
 
-        @* Image Preview *@
-        <div class="image-preview-area">
-            @if (_imageData != null)
-            {
-                <img src="@_imageDataUrl" alt="Uploaded image" class="preview-image" />
-                <MudIconButton Icon="@Icons.Material.Filled.Close" 
-                               Size="Size.Small" 
-                               Color="Color.Error"
-                               Class="remove-image-btn"
-                               OnClick="RemoveImage" />
-            }
-            else
-            {
-                <MudPaper Elevation="0" Class="upload-placeholder" @onclick="TriggerFileUpload">
-                    <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Size="Size.Large" Color="Color.Primary" />
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">Click to upload image</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">JPEG, PNG, WebP</MudText>
-                </MudPaper>
-            }
-        </div>
-        
-        <InputFile id="fileInput" OnChange="HandleFileUpload" Accept=".jpg,.jpeg,.png,.webp" style="display:none;" />
+        @* Image Preview & Upload *@
+        <MudFileUpload T="IBrowserFile" Accept=".jpg, .jpeg, .png, .webp" FilesChanged="HandleFileUpload">
+            <ActivatorContent>
+                <div class="image-preview-area">
+                    @if (_imageData != null)
+                    {
+                        <img src="@_imageDataUrl" alt="Uploaded image" class="preview-image" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Close" 
+                                       Size="Size.Small" 
+                                       Color="Color.Error"
+                                       Class="remove-image-btn"
+                                       OnClick="@(e => RemoveImage())" />
+                    }
+                    else
+                    {
+                        <MudStack AlignItems="AlignItems.Center" Spacing="1" Class="upload-placeholder">
+                            <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Size="Size.Large" Color="Color.Primary" />
+                            <MudText Typo="Typo.body2" Color="Color.Secondary">Click to upload image</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">JPEG, PNG, WebP</MudText>
+                        </MudStack>
+                    }
+                </div>
+            </ActivatorContent>
+        </MudFileUpload>
 
         @* Response Area *@
         @if (!string.IsNullOrEmpty(_response))
@@ -187,14 +189,10 @@
         _hasActiveConfig = geminiConfig != null || openAiConfig != null || localConfig != null;
     }
 
-    private void TriggerFileUpload()
+    private async Task HandleFileUpload(IBrowserFile file)
     {
-        // Using JS to trigger file input click
-    }
-
-    private async Task HandleFileUpload(InputFileChangeEventArgs e)
-    {
-        var file = e.File;
+        if (file == null) return;
+        
         if (file.Size > 10 * 1024 * 1024)
         {
             Snackbar.Add("Image must be less than 10MB", Severity.Warning);
