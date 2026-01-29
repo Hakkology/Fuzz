@@ -30,7 +30,7 @@ public class LocalAgentService : IFuzzAgentService
         _tools = tools;
     }
 
-    public async Task<FuzzResponse> ProcessCommandAsync(string input, string userId)
+    public async Task<FuzzResponse> ProcessCommandAsync(string input, string userId, bool useTools = true)
     {
         try 
         {
@@ -40,10 +40,10 @@ public class LocalAgentService : IFuzzAgentService
 
             var client = CreateClient(configData);
 
-            InitializeHistory(userId);
+            InitializeHistory(userId, useTools);
             _history.Add(new UserChatMessage(input));
 
-            var options = await BuildOptionsAsync(configData.Id, forceToolCall: true);
+            var options = await BuildOptionsAsync(configData.Id, useTools, forceToolCall: useTools);
             var finalAnswer = await ExecuteAgentLoopAsync(client, options, userId);
 
             TrimHistory();
@@ -72,17 +72,31 @@ public class LocalAgentService : IFuzzAgentService
             options: new OpenAIClientOptions { Endpoint = new Uri(apiBase) });
     }
 
-    private void InitializeHistory(string userId)
+    private void InitializeHistory(string userId, bool useTools)
     {
-        if (_history.Count == 0 || (_history[0] is SystemChatMessage scm && !scm.Content[0].Text.Contains(userId)))
+        // If the mode changed (e.g. from tools to no-tools or vice versa which implies a prompt change),
+        // we might want to reset. For simplicity, we check if empty or if system prompt matches intent.
+        // But simpler: just reset if empty.
+        // To properly switch modes without clearing history is complex with different system prompts.
+        // For now, we'll just check if history is empty. 
+        // A better approach: if user switches chat pages, history might need clearing or be separate services.
+        // Since we split the pages (AgentChat vs AgentTodoChat), separate instances might be better, or just clear history on mode switch.
+        // But here we are reusing the singleton/scoped service.
+        // Let's check the system prompt content to decide if we need to reset.
+        
+        bool currentIsTools = _history.Count > 0 && _history[0] is SystemChatMessage scm && scm.Content[0].Text.Contains("You are Fuzz");
+        
+        if (_history.Count == 0 || (currentIsTools != useTools))
         {
             _history.Clear();
-            // Local models need more explicit examples
-            _history.Add(new SystemChatMessage(AgentPrompts.GetTaskManagerPrompt(userId, includeExamples: true)));
+            string prompt = useTools 
+                ? AgentPrompts.GetTaskManagerPrompt(userId, includeExamples: true) 
+                : "You are a helpful AI assistant named Fuzz. You can answer questions and chat with the user.";
+            _history.Add(new SystemChatMessage(prompt));
         }
     }
 
-    private async Task<ChatCompletionOptions> BuildOptionsAsync(int configId, bool forceToolCall = false)
+    private async Task<ChatCompletionOptions> BuildOptionsAsync(int configId, bool useTools, bool forceToolCall = false)
     {
         var aiParams = await _configService.GetParametersAsync(configId);
         var options = new ChatCompletionOptions
@@ -94,15 +108,18 @@ public class LocalAgentService : IFuzzAgentService
             PresencePenalty = aiParams != null ? (float)aiParams.PresencePenalty : 0
         };
 
-        foreach (var tool in _tools)
+        if (useTools)
         {
-            var def = tool.GetDefinition();
-            var toolParams = BinaryData.FromString(JsonSerializer.Serialize(def.Parameters));
-            options.Tools.Add(ChatTool.CreateFunctionTool(def.Name, def.Description, toolParams));
-        }
+            foreach (var tool in _tools)
+            {
+                var def = tool.GetDefinition();
+                var toolParams = BinaryData.FromString(JsonSerializer.Serialize(def.Parameters));
+                options.Tools.Add(ChatTool.CreateFunctionTool(def.Name, def.Description, toolParams));
+            }
 
-        if (forceToolCall)
-            options.ToolChoice = ChatToolChoice.CreateRequiredChoice();
+            if (forceToolCall)
+                options.ToolChoice = ChatToolChoice.CreateRequiredChoice();
+        }
 
         return options;
     }

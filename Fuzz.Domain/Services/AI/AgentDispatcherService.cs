@@ -36,15 +36,15 @@ public class AgentDispatcherService : IFuzzAgentService
         return active?.Provider;
     }
 
-    public async Task<FuzzResponse> ProcessCommandAsync(string input, string userId)
+    public async Task<FuzzResponse> ProcessCommandAsync(string input, string userId, bool useTools = true)
     {
         var provider = await GetActiveProviderAsync(userId);
         
         return provider switch
         {
-            AiProvider.Gemini => await _geminiService.ProcessCommandAsync(input, userId),
-            AiProvider.OpenAI => await _openaiService.ProcessCommandAsync(input, userId),
-            AiProvider.Local => await _localService.ProcessCommandAsync(input, userId),
+            AiProvider.Gemini => await _geminiService.ProcessCommandAsync(input, userId, useTools),
+            AiProvider.OpenAI => await _openaiService.ProcessCommandAsync(input, userId, useTools),
+            AiProvider.Local => await _localService.ProcessCommandAsync(input, userId, useTools),
             _ => new FuzzResponse { Answer = "Please select an active AI provider from the 'AI Settings' page." }
         };
     }
