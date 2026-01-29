@@ -359,6 +359,7 @@
         finally
         {
             _isLoading = false;
+            StateHasChanged();
         }
     }
 
@@ -419,16 +420,29 @@
 
     private async Task SetActive(FuzzAiConfig config)
     {
+        // Hızlı geri bildirim için yerel durumu hemen güncelle (Optimistic UI)
+        foreach (var c in _configs)
+        {
+            c.IsActive = (c.Id == config.Id);
+        }
+        StateHasChanged();
+
         try
         {
             await ConfigService.SetActiveConfigAsync(config.Id, _userId);
+            // Veritabanından son durumu teyit et
             await LoadConfigs();
             Snackbar.Add($"{config.Provider} şu an aktif sağlayıcı.", Severity.Info);
         }
         catch (Exception ex)
         {
+            await LoadConfigs(); // Hata durumunda eski hali geri yükle
             Logger.LogError(ex, "Aktif yapılandırma değiştirilemedi.");
             Snackbar.Add($"Hata: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            StateHasChanged();
         }
     }
 
