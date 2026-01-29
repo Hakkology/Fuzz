@@ -88,17 +88,25 @@ public class FuzzSeedService : IFuzzSeedService
             {
                 _logger.LogInformation("🌱 Seeding default AI models...");
                 
-                var defaultModels = new List<Entities.FuzzAiModel>();
+                var defaultModels = new List<Entities.FuzzAiModel>
+                {
+                    // Gemini Text Models
+                    new() { Provider = Entities.AiProvider.Gemini, ModelId = "gemini-2.5-flash", DisplayName = "Gemini 2.5 Flash" },
+                    new() { Provider = Entities.AiProvider.Gemini, ModelId = "gemini-3-flash", DisplayName = "Gemini 3 Flash" },
+                    
+                    // Gemini Visual Models
+                    new() { Provider = Entities.AiProvider.Gemini, ModelId = "gemini-2.5-flash", DisplayName = "Gemini 2.5 Flash (Vision)", IsVisualRecognition = true },
+                    new() { Provider = Entities.AiProvider.Gemini, ModelId = "gemini-3-flash", DisplayName = "Gemini 3 Flash (Vision)", IsVisualRecognition = true },
 
-                // Gemini Models
-                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.Gemini, ModelId = "gemini-1.5-flash", DisplayName = "Gemini 1.5 Flash" });
-                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.Gemini, ModelId = "gemini-1.5-pro", DisplayName = "Gemini 1.5 Pro" });
-                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.Gemini, ModelId = "gemma-2-9b", DisplayName = "Gemma 2 9B" });
-
-                // OpenAI Models
-                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.OpenAI, ModelId = "gpt-4o", DisplayName = "GPT-4o" });
-                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.OpenAI, ModelId = "gpt-4o-mini", DisplayName = "GPT-4o-mini" });
-                defaultModels.Add(new Entities.FuzzAiModel { Provider = Entities.AiProvider.OpenAI, ModelId = "o1-preview", DisplayName = "o1 Preview" });
+                    // OpenAI Text Models
+                    new() { Provider = Entities.AiProvider.OpenAI, ModelId = "gpt-4o-mini", DisplayName = "GPT-4o Mini" },
+                    new() { Provider = Entities.AiProvider.OpenAI, ModelId = "gpt-4.1", DisplayName = "GPT-4.1" },
+                    new() { Provider = Entities.AiProvider.OpenAI, ModelId = "o1-preview", DisplayName = "o1 Preview" },
+                    
+                    // OpenAI Visual Models
+                    new() { Provider = Entities.AiProvider.OpenAI, ModelId = "gpt-4o", DisplayName = "GPT-4o (Vision)", IsVisualRecognition = true },
+                    new() { Provider = Entities.AiProvider.OpenAI, ModelId = "gpt-4o-mini", DisplayName = "GPT-4o Mini (Vision)", IsVisualRecognition = true },
+                };
 
                 _dbContext.FuzzAiModels.AddRange(defaultModels);
                 await _dbContext.SaveChangesAsync();

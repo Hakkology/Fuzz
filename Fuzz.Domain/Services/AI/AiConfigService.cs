@@ -57,11 +57,11 @@ public class AiConfigService : IAiConfigService
 
     #region Configuration Methods
 
-    public async Task<FuzzAiConfig?> GetActiveConfigAsync(string userId, AiProvider provider)
+    public async Task<FuzzAiConfig?> GetActiveConfigAsync(string userId, AiProvider provider, bool isVisual = false)
     {
         using var db = await _dbFactory.CreateDbContextAsync();
         return await db.AiConfigurations
-            .FirstOrDefaultAsync(c => c.UserId == userId && c.IsActive && c.Provider == provider);
+            .FirstOrDefaultAsync(c => c.UserId == userId && c.IsActive && c.Provider == provider && c.IsVisualRecognition == isVisual);
     }
 
     public async Task<List<FuzzAiConfig>> GetUserConfigsAsync(string userId)
@@ -104,12 +104,14 @@ public class AiConfigService : IAiConfigService
 
     #region Model Methods
 
-    public async Task<List<FuzzAiModel>> GetModelsAsync(AiProvider? provider = null)
+    public async Task<List<FuzzAiModel>> GetModelsAsync(AiProvider? provider = null, bool? isVisual = null)
     {
         using var db = await _dbFactory.CreateDbContextAsync();
         var query = db.FuzzAiModels.AsQueryable();
         if (provider.HasValue)
             query = query.Where(m => m.Provider == provider.Value);
+        if (isVisual.HasValue)
+            query = query.Where(m => m.IsVisualRecognition == isVisual.Value);
         return await query.OrderBy(m => m.DisplayName).ToListAsync();
     }
 

@@ -10,6 +10,7 @@ using Fuzz.Domain.Services;
 using MudBlazor.Services;
 using Fuzz.Domain.Services.Interfaces;
 using Fuzz.Domain.Services.Tools;
+using Fuzz.Domain.Services.AI;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -60,6 +61,11 @@ builder.Services.AddScoped<IFuzzAgentService, AgentDispatcherService>();
 builder.Services.AddKeyedScoped<IFuzzAgentService, GeminiAgentService>(AiProvider.Gemini);
 builder.Services.AddKeyedScoped<IFuzzAgentService, OpenAiAgentService>(AiProvider.OpenAI);
 builder.Services.AddKeyedScoped<IFuzzAgentService, LocalAgentService>(AiProvider.Local);
+
+// Visual AI Services
+builder.Services.AddScoped<IVisualAgentService, GeminiVisualService>();
+builder.Services.AddScoped<IVisualAgentService, OpenAiVisualService>();
+builder.Services.AddScoped<IVisualAgentService, LocalVisualService>();
 
 builder.Services.AddScoped<IFuzzSeedService, FuzzSeedService>();
 

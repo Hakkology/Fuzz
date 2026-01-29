@@ -28,6 +28,9 @@
                     <MudTextField @bind-Value="_newModel.DisplayName" Label="Display Name (e.g., GPT-5 Next Gen)" Variant="Variant.Outlined" Required="true" />
                 </MudItem>
                 <MudItem xs="12" sm="2">
+                    <MudCheckBox @bind-Value="_newModel.IsVisualRecognition" Label="Visual AI" Color="Color.Secondary" />
+                </MudItem>
+                <MudItem xs="12" sm="2">
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveModel" FullWidth="true" Style="height: 56px">Add</MudButton>
                 </MudItem>
             </MudGrid>
@@ -40,6 +43,7 @@
                     <MudTh>Model ID</MudTh>
                     <MudTh>Display Name</MudTh>
                     <MudTh>Type</MudTh>
+                    <MudTh>Visual</MudTh>
                     <MudTh>Action</MudTh>
                 </HeaderContent>
                 <RowTemplate>
@@ -50,6 +54,12 @@
                     <MudTd>@context.DisplayName</MudTd>
                     <MudTd>
                         @(context.IsCustom ? "Custom" : "Global")
+                    </MudTd>
+                    <MudTd>
+                        @if (context.IsVisualRecognition)
+                        {
+                            <MudIcon Icon="@Icons.Material.Filled.Visibility" Color="Color.Secondary" Size="Size.Small" />
+                        }
                     </MudTd>
                     <MudTd>
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteModel(context.Id))" />

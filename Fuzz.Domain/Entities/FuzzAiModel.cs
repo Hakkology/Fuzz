@@ -17,5 +17,7 @@ public class FuzzAiModel
 
     public bool IsCustom { get; set; }
 
+    public bool IsVisualRecognition { get; set; } = false;
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
