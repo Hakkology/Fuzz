@@ -1,7 +1,8 @@
+using Fuzz.Domain.Services.Interfaces;
 using Google.GenAI.Types;
+using Microsoft.Extensions.Configuration;
 using Npgsql;
 using System.Text.Json;
-using Microsoft.Extensions.Configuration;
 
 namespace Fuzz.Domain.Ai.Tools;
 

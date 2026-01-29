@@ -2,6 +2,7 @@
 @using Fuzz.Domain.Data
 @using Fuzz.Domain.Entities
 @using Fuzz.Domain.Services.Interfaces
+@using Fuzz.Web.Components.Pages.Dialog
 @using Microsoft.EntityFrameworkCore
 @rendermode InteractiveServer
 @inject IAiConfigService ConfigService
@@ -463,7 +464,7 @@
         var parameters = new DialogParameters { ["ConfigId"] = configId };
         var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Small, FullWidth = true };
         
-        var dialog = DialogService.ShowAsync<AiParameterDialog>("AI Generation Parameters", parameters, options);
+        var dialog = await DialogService.ShowAsync<AiParameterDialog>("AI Generation Parameters", parameters, options);
         var result = await dialog.Result;
     }
 }
