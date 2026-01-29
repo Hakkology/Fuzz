@@ -38,6 +38,13 @@ public class WebScraperAiTool : IAiTool
         };
     }
 
+    public string? CheckGuardrails(Dictionary<string, object?> args)
+    {
+        // Basic check: Ensure URL is provided. We could add domain allowlisting here later.
+        if (!args.ContainsKey("url")) return "Guardrails: URL is missing.";
+        return null;
+    }
+
     public async Task<object> ExecuteAsync(Dictionary<string, object?> args, string userId)
     {
         if (!args.TryGetValue("url", out var urlObj) || urlObj == null)
@@ -76,7 +83,6 @@ public class WebScraperAiTool : IAiTool
         var doc = new HtmlDocument();
         doc.LoadHtml(html);
 
-        // Remove script, style, and comments
         var nodesToRemove = doc.DocumentNode.SelectNodes("//script|//style|//comment()");
         if (nodesToRemove != null)
         {
@@ -86,15 +92,9 @@ public class WebScraperAiTool : IAiTool
             }
         }
 
-        // Get text content
         string text = doc.DocumentNode.InnerText;
-
-        // Decode HTML entities (e.g., &nbsp; -> space)
         text = HtmlEntity.DeEntitize(text);
-
-        // Normalize whitespace (condense multiple spaces/newlines into single space)
         text = Regex.Replace(text, @"\s+", " ");
-
         return text.Trim();
     }
 }

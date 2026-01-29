@@ -1,7 +1,7 @@
-using Fuzz.Domain.Ai;
 using Fuzz.Domain.Entities;
 using Fuzz.Domain.Models;
 using Fuzz.Domain.Services.Interfaces;
+using Fuzz.Domain.Services.Tools;
 using Google.GenAI;
 using Google.GenAI.Types;
 using Microsoft.Extensions.Logging;
@@ -15,7 +15,7 @@ public class GeminiAgentService : IFuzzAgentService
     private readonly IEnumerable<IAiTool> _tools;
     private readonly List<Content> _history = new();
 
-    public string? LastSql => _tools.OfType<Ai.Tools.SqlAiTool>().FirstOrDefault()?.LastQuery;
+    public string? LastSql => _tools.OfType<SchemaAiTool>().FirstOrDefault()?.LastQuery;
 
     public GeminiAgentService(
         IAiConfigService configService, 
@@ -115,7 +115,15 @@ RULES:
                 }
             }
 
-            if (_history.Count > 10) _history.RemoveRange(2, 2);
+            // Keep the system prompt (index 0) and the last 10 messages to manage tokens
+            if (_history.Count > 10) 
+            {
+                var systemPrompt = _history[0];
+                var recentHistory = _history.TakeLast(10).ToList();
+                _history.Clear();
+                _history.Add(systemPrompt);
+                _history.AddRange(recentHistory);
+            }
 
             return new FuzzResponse { Answer = finalAnswer, LastSql = LastSql };
         }

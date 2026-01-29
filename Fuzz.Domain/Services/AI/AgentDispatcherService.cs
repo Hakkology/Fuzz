@@ -4,7 +4,6 @@ using Fuzz.Domain.Models;
 using Fuzz.Domain.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace Fuzz.Domain.Services;
 
