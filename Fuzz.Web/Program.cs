@@ -16,6 +16,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddMudServices();
 builder.Services.AddHttpClient();
+builder.Services.AddMemoryCache();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()

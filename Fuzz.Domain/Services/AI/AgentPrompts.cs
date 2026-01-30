@@ -22,7 +22,10 @@ SQL SYNTAX (CRITICAL - FOLLOW EXACTLY):
 - Table/Column names use DOUBLE QUOTES: ""FuzzTodos"", ""Title"", ""UserId""
 - String VALUES use SINGLE QUOTES: 'some text', '{userId}'
 - Booleans: TRUE or FALSE (not 0/1)
-- Date/Time: When INSERTING, always set ""CreatedAt"" = CURRENT_TIMESTAMP";
+- Date/Time: When INSERTING, always set ""CreatedAt"" = CURRENT_TIMESTAMP
+
+DATABASE SCHEMA:
+- Table ""FuzzTodos"": (""Id"" (UUID), ""Title"" (TEXT), ""Description"" (TEXT), ""IsCompleted"" (BOOLEAN), ""UserId"" (TEXT), ""CreatedAt"" (TIMESTAMP))";
 
         if (includeExamples)
         {
