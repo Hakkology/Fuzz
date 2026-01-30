@@ -1,27 +1,26 @@
 @page "/agent-todo"
 @rendermode InteractiveServer
+@using Fuzz.Domain.Entities
 @using Fuzz.Domain.Services
 @using Fuzz.Domain.Services.Interfaces
+@using Fuzz.Web.Components.Pages.Shared
 @inject IFuzzAgentService AgentService
+@inject IAiConfigService ConfigService
 @inject AuthenticationStateProvider AuthProvider
 
 <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
     <MudPaper Elevation="0" Class="pa-4 chat-container">
         
-        @* Header *@
-        <div class="chat-header">
-            <MudAvatar Color="Color.Primary" Size="Size.Medium">
-                <MudIcon Icon="@Icons.Material.Filled.TaskAlt" />
-            </MudAvatar>
-            <div class="chat-header-text">
-                <MudText Typo="Typo.h6">Fuzz Task Agent</MudText>
-                <MudText Typo="Typo.caption" Style="color: #B0B0B0;">Database & Todo Assistant</MudText>
-            </div>
+        <PageHeader Title="Fuzz Task Agent" 
+                    Subtitle="Database & Todo Assistant" 
+                    Icon="@Icons.Material.Filled.TaskAlt"
+                    IconColor="Color.Primary"
+                    IsActive="@_isActive">
             @if (!string.IsNullOrEmpty(_globalLastSql))
             {
                 <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Filled">SQL</MudChip>
             }
-        </div>
+        </PageHeader>
         
         @if (!string.IsNullOrEmpty(_globalLastSql))
         {
@@ -36,24 +35,9 @@
         <div class="chat-messages" @ref="_chatContainer">
             @foreach (var msg in _messages)
             {
-                <div class="chat-bubble-wrapper @(msg.IsUser ? "user" : "agent")">
-                    @if (!msg.IsUser)
-                    {
-                        <MudAvatar Color="Color.Primary" Size="Size.Small" Class="chat-avatar">
-                            <MudIcon Icon="@Icons.Material.Filled.SmartToy" Size="Size.Small" />
-                        </MudAvatar>
-                    }
-                    <div class="chat-bubble @(msg.IsUser ? "user-bubble" : "agent-bubble")">
-                        <div class="chat-content">@((MarkupString)FormatMessage(msg.Content))</div>
-                        <span class="chat-time">@msg.Timestamp.ToString("HH:mm")</span>
-                    </div>
-                    @if (msg.IsUser)
-                    {
-                        <MudAvatar Color="Color.Secondary" Size="Size.Small" Class="chat-avatar">
-                            <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" />
-                        </MudAvatar>
-                    }
-                </div>
+                <ChatBubble Message="@msg.Content" 
+                            IsUser="@msg.IsUser" 
+                            Timestamp="@msg.Timestamp" />
             }
             
             @if (_isProcessing)
@@ -70,21 +54,10 @@
             }
         </div>
 
-        <div class="chat-input-area">
-            <MudTextField @bind-Value="_currentInput" 
-                          Placeholder="Ask to create tasks, query todos..." 
-                          Variant="Variant.Outlined" 
-                          Margin="Margin.Dense" 
-                          OnKeyDown="@HandleKeyDown"
-                          Disabled="@_isProcessing"
-                          Immediate="true"
-                          FullWidth="true" />
-            <MudIconButton Icon="@Icons.Material.Filled.Send" 
-                           Color="Color.Primary" 
-                           Variant="Variant.Filled"
-                           OnClick="SendMessage" 
-                           Disabled="@(string.IsNullOrWhiteSpace(_currentInput) || _isProcessing)" />
-        </div>
+        <ChatInput @bind-Value="_currentInput" 
+                   Placeholder="Ask to create tasks, query todos..." 
+                   IsProcessing="@_isProcessing"
+                   OnSend="SendMessage" />
     </MudPaper>
 </MudContainer>
 
@@ -99,19 +72,6 @@
         flex-direction: column;
     }
     
-    .chat-header {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding-bottom: 16px;
-        border-bottom: 1px solid rgba(255, 107, 53, 0.1);
-        margin-bottom: 16px;
-    }
-    
-    .chat-header-text {
-        flex: 1;
-    }
-    
     .chat-messages {
         flex: 1;
         overflow-y: auto;
@@ -119,66 +79,6 @@
         display: flex;
         flex-direction: column;
         gap: 12px;
-    }
-    
-    .chat-bubble-wrapper {
-        display: flex;
-        align-items: flex-end;
-        gap: 8px;
-    }
-    
-    .chat-bubble-wrapper.user {
-        flex-direction: row;
-        justify-content: flex-end;
-    }
-    
-    .chat-bubble-wrapper.agent {
-        flex-direction: row;
-        justify-content: flex-start;
-    }
-    
-    .chat-avatar {
-        flex-shrink: 0;
-    }
-    
-    .chat-bubble {
-        max-width: 75%;
-        padding: 12px 16px;
-        border-radius: 16px;
-        position: relative;
-    }
-    
-    .user-bubble {
-        background: linear-gradient(135deg, #FF6B35, #FF8F5E);
-        color: white;
-        border-bottom-right-radius: 4px;
-    }
-    
-    .agent-bubble {
-        background: rgba(40, 40, 60, 0.9);
-        color: #E0E0E0;
-        border-bottom-left-radius: 4px;
-        border: 1px solid rgba(255, 107, 53, 0.2);
-    }
-    
-    .agent-bubble.typing {
-        display: flex;
-        align-items: center;
-        padding: 8px 16px;
-    }
-    
-    .chat-content {
-        line-height: 1.5;
-        white-space: pre-wrap;
-        word-break: break-word;
-    }
-    
-    .chat-time {
-        display: block;
-        font-size: 0.7rem;
-        opacity: 0.7;
-        margin-top: 4px;
-        text-align: right;
     }
     
     .sql-monitor {
@@ -197,14 +97,29 @@
         white-space: pre-wrap;
         word-break: break-all;
     }
-    
-    .chat-input-area {
+
+    /* Typing bubble */
+    .chat-bubble-wrapper.agent {
         display: flex;
+        align-items: flex-end;
         gap: 8px;
+        flex-direction: row;
+        justify-content: flex-start;
+    }
+    
+    .agent-bubble {
+        background: rgba(40, 40, 60, 0.9);
+        color: #E0E0E0;
+        border-bottom-left-radius: 4px;
+        border: 1px solid rgba(255, 107, 53, 0.2);
+        border-radius: 16px;
+        max-width: 75%;
+    }
+
+    .typing {
+        padding: 8px 16px;
+        display: flex;
         align-items: center;
-        padding-top: 16px;
-        border-top: 1px solid rgba(255, 107, 53, 0.1);
-        margin-top: auto;
     }
 </style>
 
@@ -213,6 +128,7 @@
     private string _currentInput = "";
     private string _globalLastSql = "";
     private bool _isProcessing = false;
+    private bool _isActive = false;
     private ElementReference _chatContainer;
 
     private class ChatMessage
@@ -222,20 +138,14 @@
         public DateTime Timestamp { get; set; }
     }
 
-    private string FormatMessage(string content)
+    protected override async Task OnInitializedAsync()
     {
-        content = System.Web.HttpUtility.HtmlEncode(content);
-        content = System.Text.RegularExpressions.Regex.Replace(content, @"\*\*(.+?)\*\*", "<strong>$1</strong>");
-        content = content.Replace("\n", "<br/>");
-        return content;
-    }
-
-    private async Task HandleKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(_currentInput) && !_isProcessing)
-        {
-            await SendMessage();
-        }
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "guest";
+        
+        // Check for active Text config (same provider used for tasks)
+        var config = await ConfigService.GetActiveConfigAsync(userId, mode: AiCapabilities.Text);
+        _isActive = config != null;
     }
 
     private async Task SendMessage()
@@ -253,7 +163,6 @@
             var authState = await AuthProvider.GetAuthenticationStateAsync();
             var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "guest";
 
-            // useTools=true for Todo Chat
             var response = await AgentService.ProcessCommandAsync(input, userId, useTools: true);
             
             if (!string.IsNullOrEmpty(response.LastSql))

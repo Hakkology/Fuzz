@@ -1,0 +1,65 @@
+@using MudBlazor
+
+<div class="chat-input-area">
+    <MudTextField @bind-Value="Value"
+                  Placeholder="@Placeholder"
+                  Variant="Variant.Outlined"
+                  Margin="Margin.Dense"
+                  OnKeyDown="@HandleKeyDown"
+                  Disabled="@(IsProcessing || Disabled)"
+                  Immediate="true"
+                  FullWidth="true"
+                  Lines="@Lines"
+                  TextChanged="@OnValueChanged" />
+                  
+    <MudIconButton Icon="@Icons.Material.Filled.Send"
+                   Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   OnClick="OnSendClick"
+                   Disabled="@(string.IsNullOrWhiteSpace(Value) || IsProcessing || Disabled)" />
+</div>
+
+<style>
+    .chat-input-area {
+        display: flex;
+        gap: 8px;
+        align-items: flex-end; /* Changed center to flex-end for multiline */
+        padding-top: 16px;
+        border-top: 1px solid rgba(255, 107, 53, 0.1);
+        margin-top: auto;
+    }
+</style>
+
+@code {
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public bool IsProcessing { get; set; }
+    [Parameter] public bool Disabled { get; set; } = false;
+    [Parameter] public string Placeholder { get; set; } = "Type a message...";
+    [Parameter] public int Lines { get; set; } = 1;
+    [Parameter] public EventCallback OnSend { get; set; }
+
+    private async Task OnValueChanged(string value)
+    {
+        Value = value;
+        await ValueChanged.InvokeAsync(value);
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        // If multiline (Lines > 1), Enter usually creates new line unless we enforce Ctrl+Enter or just Enter
+        // For consistency in this app, let's say Enter sends, Shift+Enter for newline if multiline?
+        // Or if Lines > 1, maybe requiring Ctrl+Enter is better?
+        // For now, let's keep it simple: Enter sends if not Shift+Enter (standard chat behavior)
+        
+        if (e.Key == "Enter" && !e.ShiftKey && !string.IsNullOrWhiteSpace(Value) && !IsProcessing && !Disabled)
+        {
+            await OnSend.InvokeAsync();
+        }
+    }
+    
+    private async Task OnSendClick()
+    {
+        await OnSend.InvokeAsync();
+    }
+}
