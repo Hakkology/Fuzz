@@ -30,7 +30,7 @@ public class LocalAgentService : IFuzzAgentService
         _tools = tools;
     }
 
-    public async Task<FuzzResponse> ProcessCommandAsync(string input, string userId)
+    public async Task<FuzzResponse> ProcessCommandAsync(string input, string userId, bool useTools = true)
     {
         try 
         {
@@ -40,10 +40,10 @@ public class LocalAgentService : IFuzzAgentService
 
             var client = CreateClient(configData);
 
-            InitializeHistory(userId);
+            InitializeHistory(userId, useTools);
             _history.Add(new UserChatMessage(input));
 
-            var options = await BuildOptionsAsync(configData.Id, forceToolCall: true);
+            var options = await BuildOptionsAsync(configData.Id, useTools, forceToolCall: useTools);
             var finalAnswer = await ExecuteAgentLoopAsync(client, options, userId);
 
             TrimHistory();
@@ -58,7 +58,7 @@ public class LocalAgentService : IFuzzAgentService
 
     public void ClearHistory() => _history.Clear();
 
-    #region Private Methods
+
 
     private static ChatClient CreateClient(FuzzAiConfig config)
     {
@@ -72,17 +72,23 @@ public class LocalAgentService : IFuzzAgentService
             options: new OpenAIClientOptions { Endpoint = new Uri(apiBase) });
     }
 
-    private void InitializeHistory(string userId)
+    private void InitializeHistory(string userId, bool useTools)
     {
-        if (_history.Count == 0 || (_history[0] is SystemChatMessage scm && !scm.Content[0].Text.Contains(userId)))
+
+        
+        bool currentIsTools = _history.Count > 0 && _history[0] is SystemChatMessage scm && scm.Content[0].Text.Contains("You are Fuzz");
+        
+        if (_history.Count == 0 || (currentIsTools != useTools))
         {
             _history.Clear();
-            // Local models need more explicit examples
-            _history.Add(new SystemChatMessage(AgentPrompts.GetTaskManagerPrompt(userId, includeExamples: true)));
+            string prompt = useTools 
+                ? AgentPrompts.GetTaskManagerPrompt(userId, includeExamples: true) 
+                : "You are a helpful AI assistant named Fuzz. You can answer questions and chat with the user.";
+            _history.Add(new SystemChatMessage(prompt));
         }
     }
 
-    private async Task<ChatCompletionOptions> BuildOptionsAsync(int configId, bool forceToolCall = false)
+    private async Task<ChatCompletionOptions> BuildOptionsAsync(int configId, bool useTools, bool forceToolCall = false)
     {
         var aiParams = await _configService.GetParametersAsync(configId);
         var options = new ChatCompletionOptions
@@ -94,15 +100,18 @@ public class LocalAgentService : IFuzzAgentService
             PresencePenalty = aiParams != null ? (float)aiParams.PresencePenalty : 0
         };
 
-        foreach (var tool in _tools)
+        if (useTools)
         {
-            var def = tool.GetDefinition();
-            var toolParams = BinaryData.FromString(JsonSerializer.Serialize(def.Parameters));
-            options.Tools.Add(ChatTool.CreateFunctionTool(def.Name, def.Description, toolParams));
-        }
+            foreach (var tool in _tools)
+            {
+                var def = tool.GetDefinition();
+                var toolParams = BinaryData.FromString(JsonSerializer.Serialize(def.Parameters));
+                options.Tools.Add(ChatTool.CreateFunctionTool(def.Name, def.Description, toolParams));
+            }
 
-        if (forceToolCall)
-            options.ToolChoice = ChatToolChoice.CreateRequiredChoice();
+            if (forceToolCall)
+                options.ToolChoice = ChatToolChoice.CreateRequiredChoice();
+        }
 
         return options;
     }
@@ -154,5 +163,5 @@ public class LocalAgentService : IFuzzAgentService
             _history.RemoveRange(1, 2);
     }
 
-    #endregion
+
 }

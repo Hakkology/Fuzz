@@ -27,7 +27,7 @@ public class AiConfigService : IAiConfigService
         _logger = logger;
     }
 
-    #region Helper Methods
+
 
     private static string NormalizeOllamaUrl(string? apiBase)
     {
@@ -53,15 +53,23 @@ public class AiConfigService : IAiConfigService
         }
     }
 
-    #endregion
 
-    #region Configuration Methods
 
-    public async Task<FuzzAiConfig?> GetActiveConfigAsync(string userId, AiProvider provider, AiCapabilities mode = AiCapabilities.Text)
+
+
+    public async Task<FuzzAiConfig?> GetActiveConfigAsync(string userId, AiProvider? provider = null, AiCapabilities mode = AiCapabilities.Text)
     {
         using var db = await _dbFactory.CreateDbContextAsync();
+        
+        if (provider.HasValue)
+        {
+            return await db.AiConfigurations
+                .FirstOrDefaultAsync(c => c.UserId == userId && c.IsActive && c.Provider == provider.Value && c.Mode == mode);
+        }
+        
+        // No provider specified - just find active config for this mode
         return await db.AiConfigurations
-            .FirstOrDefaultAsync(c => c.UserId == userId && c.IsActive && c.Provider == provider && c.Mode == mode);
+            .FirstOrDefaultAsync(c => c.UserId == userId && c.IsActive && c.Mode == mode);
     }
 
     public async Task<List<FuzzAiConfig>> GetUserConfigsAsync(string userId)
@@ -109,9 +117,9 @@ public class AiConfigService : IAiConfigService
         await db.SaveChangesAsync();
     }
 
-    #endregion
 
-    #region Model Methods
+
+
 
     public async Task<List<FuzzAiModel>> GetModelsAsync(AiProvider? provider = null, AiCapabilities? capability = null)
     {
@@ -274,9 +282,9 @@ public class AiConfigService : IAiConfigService
         return deletedCount;
     }
 
-    #endregion
 
-    #region Parameters Methods
+
+
 
     public async Task<FuzzAiParameters?> GetParametersAsync(int configId)
     {
@@ -306,5 +314,5 @@ public class AiConfigService : IAiConfigService
         await db.SaveChangesAsync();
     }
 
-    #endregion
+
 }

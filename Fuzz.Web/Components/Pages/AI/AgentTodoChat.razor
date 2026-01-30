@@ -1,4 +1,4 @@
-@page "/agent-chat"
+@page "/agent-todo"
 @rendermode InteractiveServer
 @using Fuzz.Domain.Entities
 @using Fuzz.Domain.Services
@@ -11,11 +11,26 @@
 <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
     <MudPaper Elevation="0" Class="pa-4 chat-container">
         
-        <PageHeader Title="Fuzz Chat" 
-                    Subtitle="General conversation assistant" 
-                    Icon="@Icons.Material.Filled.Chat"
+        <PageHeader Title="Fuzz Task Agent" 
+                    Subtitle="Database & Todo Assistant" 
+                    Icon="@Icons.Material.Filled.TaskAlt"
                     IconColor="Color.Primary"
-                    IsActive="@_isActive"/>
+                    IsActive="@_isActive">
+            @if (!string.IsNullOrEmpty(_globalLastSql))
+            {
+                <MudChip T="string" Color="Color.Warning" Size="Size.Small" Variant="Variant.Filled">SQL</MudChip>
+            }
+        </PageHeader>
+        
+        @if (!string.IsNullOrEmpty(_globalLastSql))
+        {
+            <MudPaper Elevation="0" Class="pa-3 mb-4 sql-monitor">
+                <MudText Typo="Typo.caption" Class="mb-1" Style="color: #ce9178; font-weight: bold;">
+                    Last SQL Query
+                </MudText>
+                <code class="sql-code">@_globalLastSql</code>
+            </MudPaper>
+        }
 
         <div class="chat-messages" @ref="_chatContainer">
             @foreach (var msg in _messages)
@@ -33,14 +48,14 @@
                     </MudAvatar>
                     <div class="chat-bubble agent-bubble typing">
                         <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Small" />
-                        <span class="ml-2">Thinking...</span>
+                        <span class="ml-2">Working on tasks...</span>
                     </div>
                 </div>
             }
         </div>
 
         <ChatInput @bind-Value="_currentInput" 
-                   Placeholder="Let's chat..." 
+                   Placeholder="Ask to create tasks, query todos..." 
                    IsProcessing="@_isProcessing"
                    OnSend="SendMessage" />
     </MudPaper>
@@ -66,7 +81,24 @@
         gap: 12px;
     }
     
-    /* Typing bubble styles specific to this page if needed, otherwise could be shared */
+    .sql-monitor {
+        background: rgba(15, 15, 35, 0.8) !important;
+        border-left: 3px solid #FF6B35;
+        border-radius: 8px !important;
+    }
+    
+    .sql-code {
+        display: block;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.75rem;
+        color: #569cd6;
+        max-height: 50px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+
+    /* Typing bubble */
     .chat-bubble-wrapper.agent {
         display: flex;
         align-items: flex-end;
@@ -94,6 +126,7 @@
 @code {
     private List<ChatMessage> _messages = new();
     private string _currentInput = "";
+    private string _globalLastSql = "";
     private bool _isProcessing = false;
     private bool _isActive = false;
     private ElementReference _chatContainer;
@@ -110,7 +143,7 @@
         var authState = await AuthProvider.GetAuthenticationStateAsync();
         var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "guest";
         
-        // Check for active Text config
+        // Check for active Text config (same provider used for tasks)
         var config = await ConfigService.GetActiveConfigAsync(userId, mode: AiCapabilities.Text);
         _isActive = config != null;
     }
@@ -130,8 +163,11 @@
             var authState = await AuthProvider.GetAuthenticationStateAsync();
             var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "guest";
 
-            var response = await AgentService.ProcessCommandAsync(input, userId, useTools: false);
+            var response = await AgentService.ProcessCommandAsync(input, userId, useTools: true);
             
+            if (!string.IsNullOrEmpty(response.LastSql))
+                _globalLastSql = response.LastSql;
+
             _messages.Add(new ChatMessage { Content = response.Answer, IsUser = false, Timestamp = DateTime.Now });
         }
         catch (Exception ex)

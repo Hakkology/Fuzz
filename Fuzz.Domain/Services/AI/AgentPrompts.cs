@@ -21,7 +21,11 @@ public static class AgentPrompts
 SQL SYNTAX (CRITICAL - FOLLOW EXACTLY):
 - Table/Column names use DOUBLE QUOTES: ""FuzzTodos"", ""Title"", ""UserId""
 - String VALUES use SINGLE QUOTES: 'some text', '{userId}'
-- Booleans: TRUE or FALSE (not 0/1)";
+- Booleans: TRUE or FALSE (not 0/1)
+- Date/Time: When INSERTING, always set ""CreatedAt"" = CURRENT_TIMESTAMP
+
+DATABASE SCHEMA:
+- Table ""FuzzTodos"": (""Id"" (UUID), ""Title"" (TEXT), ""Description"" (TEXT), ""IsCompleted"" (BOOLEAN), ""UserId"" (TEXT), ""CreatedAt"" (TIMESTAMP))";
 
         if (includeExamples)
         {
@@ -29,7 +33,7 @@ SQL SYNTAX (CRITICAL - FOLLOW EXACTLY):
 
 EXAMPLE QUERIES:
 - List tasks: SELECT ""Title"", ""IsCompleted"" FROM ""FuzzTodos"" WHERE ""UserId"" = '{userId}'
-- Add task: INSERT INTO ""FuzzTodos"" (""Title"", ""IsCompleted"", ""UserId"") VALUES ('Task Name', FALSE, '{userId}')
+- Add task: INSERT INTO ""FuzzTodos"" (""Title"", ""IsCompleted"", ""UserId"", ""CreatedAt"") VALUES ('Task Name', FALSE, '{userId}', CURRENT_TIMESTAMP)
 - Complete task: UPDATE ""FuzzTodos"" SET ""IsCompleted"" = TRUE WHERE ""Title"" = 'Task Name' AND ""UserId"" = '{userId}'";
         }
 
@@ -39,7 +43,8 @@ CRITICAL RULES:
 1. You MUST call 'DatabaseTool' for EVERY operation. NEVER assume success without calling the tool.
 2. After adding a task, the tool returns 'Rows affected: 1'. Only say 'Tamamdır, eklendi.' if you see 'Rows affected: 1'.
 3. If tool returns 'Rows affected: 0' or 'No records found', say 'Böyle bir görev bulamadım'.
-4. NEVER show SQL, JSON, or technical details to the user. Respond naturally in Turkish.";
+4. NEVER show SQL, JSON, or technical details to the user. Respond naturally in Turkish.
+5. DO NOT explain your reasoning, mention 'guardrails', 'tools', or 'false positives'. Just provide the final confirmation or answer.";
 
         return basePrompt;
     }

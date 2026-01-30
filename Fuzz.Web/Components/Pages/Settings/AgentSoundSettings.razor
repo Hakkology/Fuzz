@@ -14,10 +14,16 @@
             <MudItem xs="12" sm="4">
                 <MudSelect T="AiProvider" Value="_newConfig.Provider" ValueChanged="OnProviderChanged" Label="Provider" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter" AdornmentIcon="@Icons.Material.Filled.Api" AdornmentColor="Color.Tertiary">
                     <MudSelectItem Value="@AiProvider.ElevenLabs">ElevenLabs (TTS)</MudSelectItem>
+                    <MudSelectItem Value="@AiProvider.Replicate">Replicate (MusicGen)</MudSelectItem>
                 </MudSelect>
             </MudItem>
             <MudItem xs="12" sm="4">
-                <MudSelect T="string" @bind-Value="_newConfig.ModelId" Label="Vocal Agent" Variant="Variant.Outlined" AnchorOrigin="Origin.BottomCenter" AdornmentIcon="@Icons.Material.Filled.RecordVoiceOver" AdornmentColor="Color.Tertiary">
+                <MudSelect T="string" @bind-Value="_newConfig.ModelId" 
+                           Label="@(_newConfig.Provider == AiProvider.ElevenLabs ? "Vocal Agent" : "Model")" 
+                           Variant="Variant.Outlined" 
+                           AnchorOrigin="Origin.BottomCenter" 
+                           AdornmentIcon="@(_newConfig.Provider == AiProvider.ElevenLabs ? Icons.Material.Filled.RecordVoiceOver : Icons.Material.Filled.MusicNote)" 
+                           AdornmentColor="Color.Tertiary">
                     @foreach (var model in _availableModels)
                     {
                         <MudSelectItem Value="@model.ModelId">@model.DisplayName</MudSelectItem>
