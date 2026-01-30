@@ -4,7 +4,7 @@
 @using Fuzz.Domain.Services
 @using Fuzz.Domain.Services.Interfaces
 @using Fuzz.Domain.Services.AI
-@inject IEnumerable<ISoundAgentService> SoundServices
+@inject ISoundAgentService SoundService
 @inject IAiConfigService ConfigService
 @inject AuthenticationStateProvider AuthProvider
 @inject ISnackbar Snackbar
@@ -532,21 +532,7 @@
 
         try
         {
-            ISoundAgentService? service = null;
-            if (_activeProvider == AiProvider.Local)
-                service = SoundServices.OfType<LocalSoundService>().FirstOrDefault();
-            else if (_activeProvider == AiProvider.ElevenLabs)
-                service = SoundServices.OfType<ElevenLabsSoundService>().FirstOrDefault();
-            else if (_activeProvider == AiProvider.Replicate)
-                service = SoundServices.OfType<ReplicateSoundService>().FirstOrDefault();
-            
-            if (service == null)
-            {
-                Snackbar.Add("Service not found for the active provider.", Severity.Error);
-                return;
-            }
-
-            var result = await service.GenerateMusicAsync(_prompt, _userId);
+            var result = await SoundService.GenerateMusicAsync(_prompt, _userId);
             _responseContent = result.Answer;
             _isAudioData = _responseContent.StartsWith("data:audio");
             

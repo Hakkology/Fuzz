@@ -58,20 +58,23 @@ builder.Services.AddScoped<IAiTool, SchemaAiTool>();
 
 // AI Services
 builder.Services.AddScoped<IAiConfigService, AiConfigService>();
+builder.Services.AddScoped<IAiChatValidationService, AiChatValidationService>();
 builder.Services.AddScoped<IFuzzAgentService, AgentDispatcherService>();
 builder.Services.AddKeyedScoped<IFuzzAgentService, GeminiAgentService>(AiProvider.Gemini);
 builder.Services.AddKeyedScoped<IFuzzAgentService, OpenAiAgentService>(AiProvider.OpenAI);
 builder.Services.AddKeyedScoped<IFuzzAgentService, LocalAgentService>(AiProvider.Local);
 
 // Visual AI Services
-builder.Services.AddScoped<IVisualAgentService, GeminiVisualService>();
-builder.Services.AddScoped<IVisualAgentService, OpenAiVisualService>();
-builder.Services.AddScoped<IVisualAgentService, LocalVisualService>();
+builder.Services.AddKeyedScoped<IVisualAgentService, GeminiVisualService>(AiProvider.Gemini);
+builder.Services.AddKeyedScoped<IVisualAgentService, OpenAiVisualService>(AiProvider.OpenAI);
+builder.Services.AddKeyedScoped<IVisualAgentService, LocalVisualService>(AiProvider.Local);
+builder.Services.AddScoped<IVisualAgentService, VisualAgentDispatcherService>();
 
 // Sound AI Services
-builder.Services.AddScoped<ISoundAgentService, LocalSoundService>();
-builder.Services.AddScoped<ISoundAgentService, ElevenLabsSoundService>();
-builder.Services.AddScoped<ISoundAgentService, ReplicateSoundService>();
+builder.Services.AddKeyedScoped<ISoundAgentService, LocalSoundService>(AiProvider.Local);
+builder.Services.AddKeyedScoped<ISoundAgentService, ElevenLabsSoundService>(AiProvider.ElevenLabs);
+builder.Services.AddKeyedScoped<ISoundAgentService, ReplicateSoundService>(AiProvider.Replicate);
+builder.Services.AddScoped<ISoundAgentService, SoundAgentDispatcherService>();
 
 builder.Services.AddScoped<IFuzzSeedService, FuzzSeedService>();
 
