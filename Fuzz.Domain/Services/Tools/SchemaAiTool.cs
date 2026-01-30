@@ -1,6 +1,7 @@
 using Fuzz.Domain.Services.Interfaces;
 using Google.GenAI.Types;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Caching.Memory;
 using Npgsql;
 using System.Text;
 using System.Text.Json;
@@ -10,12 +11,14 @@ namespace Fuzz.Domain.Services.Tools;
 public class SchemaAiTool : IAiTool
 {
     private readonly string _connectionString;
+    private readonly IMemoryCache _memoryCache;
     public string? LastQuery { get; private set; }
 
-    public SchemaAiTool(IConfiguration config)
+    public SchemaAiTool(IConfiguration config, IMemoryCache memoryCache)
     {
         _connectionString = config.GetConnectionString("DefaultConnection") 
             ?? throw new Exception("Connection string 'DefaultConnection' not found.");
+        _memoryCache = memoryCache;
     }
 
     public FunctionDeclaration GetDefinition()
@@ -34,7 +37,7 @@ public class SchemaAiTool : IAiTool
                         new Schema
                         {
                             Type = Google.GenAI.Types.Type.STRING,
-                            Description = "SQL query. SYNTAX: Double quotes for names (\"Table\"), SINGLE quotes for values ('text'). Example: SELECT * FROM \"FuzzTodos\" WHERE \"UserId\" = 'user-id-here'"
+                            Description = "SQL query. SYNTAX: Double quotes for names (\"Table\"), SINGLE quotes for values ('text'). Example: SELECT * FROM \"TableName\" WHERE \"ColumnName\" = 'value'"
                         }
                     },
                     {
@@ -42,7 +45,7 @@ public class SchemaAiTool : IAiTool
                         new Schema
                         {
                             Type = Google.GenAI.Types.Type.BOOLEAN,
-                            Description = "Optional. Set to true to retrieve the list of tables (starting with 'Fuzz') and their columns."
+                            Description = "Optional. Set to true to retrieve the list of tables and their columns."
                         }
                     }
                 }
@@ -93,12 +96,20 @@ public class SchemaAiTool : IAiTool
 
     private async Task<string> GetSchemaAsync()
     {
+        return await _memoryCache.GetOrCreateAsync("DatabaseSchema_Public", async entry =>
+        {
+            entry.SlidingExpiration = TimeSpan.FromHours(1);
+            return await FetchSchemaFromDbAsync();
+        }) ?? "Error: Failed to retrieve schema.";
+    }
+
+    private async Task<string> FetchSchemaFromDbAsync()
+    {
         var schemaInfo = new StringBuilder();
         const string sql = @"
             SELECT table_name, column_name, data_type 
             FROM information_schema.columns 
             WHERE table_schema = 'public' 
-              AND table_name LIKE 'Fuzz%'
             ORDER BY table_name, ordinal_position;";
 
         try
@@ -134,7 +145,7 @@ public class SchemaAiTool : IAiTool
             }
             if (!isFirst) schemaInfo.AppendLine(")");
             
-            if (schemaInfo.Length == 0) return "No matching tables found (Tables starting with 'Fuzz').";
+            if (schemaInfo.Length == 0) return "No tables found in the public schema.";
 
             return schemaInfo.ToString();
         }
