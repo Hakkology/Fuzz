@@ -2,68 +2,48 @@
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-**FuzzSoft** is an advanced AI Agent platform built with **.NET 10** and **Blazor Server** (MudBlazor). It provides a unified interface for interacting with multiple AI models and capabilities, featuring autonomous task management, visual analysis, and sound generation.
+**FuzzSoft** is an AI Agent platform I built using **.NET 10** and **Blazor Server** (MudBlazor). The primary goal of this repository was for me to learn modern agentic workflows, experiment with toolchains, and create a maintainable codebase for exploring new models. It's a playground where I can test everything from local Ollama models to cloud-based vision and sound APIs.
 
-## Features
+## Key Features
 
 ### Multi-Brain Architecture
-- **Flexible Providers**: Switch seamlessly between **OpenAI** (GPT-4o), **Google Gemini**, **Local LLMs** (via Ollama), and **Replicate**.
-- **Unified Interface**: A single chat interface that adapts to the selected model's capabilities.
+- **Flexible Providers**: You can seamlessly switch between **OpenAI**, **Google Gemini**, **Local LLMs** (via Ollama), and **Replicate**.
+- **Playground Mode**: You can easily add your own API keys or toggle local models to test different behaviors across various interfaces (Chat, DB operations, Vision, MusicGen etc.).
 
 ### Agentic Capabilities
-- **Task Agent**: An autonomous assistant that manages your To-Do list.
-  - **Tool Use**: Can execute SQL queries against the local PostgreSQL database to Insert, Update, and List tasks.
-  - **Self-Correction**: Includes guardrails to prevent unsafe operations while handling data intelligently.
-- **Database Inspection**: The agent can inspect the database schema to understand the data structure dynamically.
+- **Task Agent**: An autonomous assistant that manages a To-Do list to test database interactions with **PostgreSQL**. It handles Create, Read, Update, and Delete operations with built-in guardrails for safety.
+- **Database Inspection**: The agent can "look" at the database schema to dynamically understand how to query the tables.
 
 ### Multimodal Support
-- **Visual Agents**: Analyze uploaded images using Vision-capable models (GPT-4o, Gemini, LLaVA).
-- **Sound Agents**: Generate sound effects and music using **ElevenLabs** and **Replicate** (MusicGen) models.
+- **Visual Agents**: Analyze and describe images using vision-capable models. (Recognition is working, generation is on the roadmap).
+- **Sound Agents**: Generate sound effects and music using **ElevenLabs** or **Replicate** (MusicGen). 
+  - *Note:* Local models like `llamusic` work too, provided the output is formatted for the `abcjs` library used in the browser.
+- **Voice Foundation**: Initial structure is there for voice interactions, waiting to be fully implemented. Maybe it won't be implemented, i don't know.
 
-### Modern Tech Stack
-- **Framework**: .NET 10 (Preview/Latest)
-- **UI Component Library**: MudBlazor
-- **Database**: PostgreSQL (with EF Core)
-- **Architecture**: Clean Architecture (Domain, Services, Web, Client)
+### User Experience
+- **Multi-User Isolation**: I added configuration separation for user, taking advantage of basic Identity framework. Logs, settings, and tasks are bound to your user ID. If I ever host this on a server with Ollama, it's ready to scale.
+- **MudBlazor UI**: I used **MudBlazor** for the interface because it's a framework I really like. It gives that nice "Glassmorphism" touch without much effort. Some of the UI features are vibe coded.
+- **Live Parameters**: You can fine-tune **Temperature**, **TopP**, and **Max Tokens** on the fly from the settings page and see the effects immediately. This was a major point in my learning process.
 
-## Getting Started
+## Tech Stack
+- **Backend**: .NET 10 & ASP.NET Core with Identity
+- **Frontend**: Blazor Server with MudBlazor
+- **Data**: PostgreSQL with Entity Framework Core (Code First)
 
-### Prerequisites
-- **.NET 10 SDK** (or compatible version)
-- **PostgreSQL** Database
-- **Ollama** (Optional, for local models)
+## Getting Started (The Short Version)
+If you want to play around with this:
+1. Ensure you have **.NET 10 SDK** and **PostgreSQL** installed.
+2. Update the `DefaultConnection` in `appsettings.Development.json` with your DB credentials for local testing.
+3. Run `dotnet ef database update` to set up the tables, although migrations should trigger automatically on startup.
+4. Hit `dotnet run` and start exploring!
 
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/FuzzSoft.git
-   cd FuzzSoft
-   ```
-
-2. **Configure Database**
-   Ensure PostgreSQL is running and update your connection string.
-
-3. **Secure Configuration**
-   The project uses `appsettings.json` for public defaults and `appsettings.Development.json` for local secrets.
-   
-   Create/Update `Fuzz.Web/appsettings.Development.json` with your real credentials:
-   ```json
-   {
-     "ConnectionStrings": {
-       "DefaultConnection": "Host=localhost;Database=FuzzDb;Username=postgres;Password=YOUR_REAL_PASSWORD"
-     }
-   }
-   ```
-   > **Note**: `appsettings.Development.json` is gitignored to keep your secrets safe.
-
-4. **Run the Application**
-   ```bash
-   cd Fuzz.Web
-   dotnet run
-   ```
-   Access the app at `http://localhost:5073` (or the port shown in your terminal).
+## Future Explorations
+- [ ] Add more specialized tools for the agents.
+- [ ] Implement image generation models.
+- [ ] Add local model providers such as LM Studio, Groq, etc.
+- [ ] Fully integrate voice-to-text and text-to-voice.
+- [ ] Keep testing the "outer reaches" of new open-source models.
+- [ ] Test multi table operations with schema tool.
 
 ## License
-
-Distributed under the MIT License. See `LICENSE` for more information.
+Feel free to use, modify, or learn from this project however you like. It is distributed under the **MIT License**. See [LICENSE](LICENSE) for more details.
