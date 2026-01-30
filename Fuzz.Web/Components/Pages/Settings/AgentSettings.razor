@@ -3,12 +3,13 @@
 @using Fuzz.Domain.Entities
 @using Fuzz.Domain.Services.Interfaces
 @using Fuzz.Web.Components.Pages.Dialog
+@using Fuzz.Web.Components.Pages.Settings
 @using Microsoft.EntityFrameworkCore
 @rendermode InteractiveServer
 @inject IAiConfigService ConfigService
 @inject AuthenticationStateProvider AuthProvider
 @inject ISnackbar Snackbar
-@inject ILogger<Settings> Logger
+@inject ILogger<AgentSettings> Logger
 @inject IDialogService DialogService
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-8 mb-16">

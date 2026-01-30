@@ -4,6 +4,7 @@
 @using Fuzz.Domain.Services
 @using Fuzz.Domain.Services.Interfaces
 @using Fuzz.Domain.Services.AI
+@using Fuzz.Web.Components.Pages.Shared
 @inject ISoundAgentService SoundService
 @inject IAiConfigService ConfigService
 @inject AuthenticationStateProvider AuthProvider
@@ -13,31 +14,12 @@
 <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
     <MudPaper Elevation="0" Class="sound-container">
         
-
-        <div class="sound-header">
-            <div class="header-icon-wrapper">
-                <MudIcon Icon="@Icons.Material.Filled.MusicNote" Size="Size.Large" />
-            </div>
-            <div class="sound-header-text">
-                <MudText Typo="Typo.h5" Style="font-weight: 600;">Fuzz Sound AI</MudText>
-                <MudText Typo="Typo.caption" Class="provider-label">
-                    <MudIcon Icon="@GetProviderIcon()" Size="Size.Small" Style="margin-right: 4px; vertical-align: middle;" />
-                    @GetProviderLabel()
-                </MudText>
-            </div>
-            
-            <MudSpacer />
-            
-            <MudChip T="string" 
-                     Color="@(_hasActiveConfig ? Color.Success : Color.Error)" 
-                     Size="Size.Small" 
-                     Variant="Variant.Filled"
-                     Class="status-chip">
-                <MudIcon Icon="@(_hasActiveConfig ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Error)" 
-                         Size="Size.Small" Style="margin-right: 4px;" />
-                @(_hasActiveConfig ? "Ready" : "Setup Required")
-            </MudChip>
-        </div>
+        <PageHeader Title="Fuzz Sound AI" 
+                    Subtitle="@GetProviderLabel()"
+                    Icon="@Icons.Material.Filled.MusicNote"
+                    IconColor="Color.Default" 
+                    IsActive="@_hasActiveConfig">
+        </PageHeader>
 
         @if (!string.IsNullOrEmpty(_responseContent))
         {
@@ -159,33 +141,12 @@
             </div>
         }
 
-        <div class="sound-input-area @(_isProcessing ? "is-disabled" : "")">
-            <MudTextField @bind-Value="_prompt" 
-                          Placeholder="@(_activeProvider == AiProvider.ElevenLabs ? "Type text to speak..." : "Describe your melody... (Ctrl+Enter to send)")" 
-                          Variant="Variant.Outlined" 
-                          Margin="Margin.Dense" 
-                          OnKeyDown="@HandleKeyDown"
-                          Disabled="@(_isProcessing || !_hasActiveConfig)"
-                          Immediate="true"
-                          FullWidth="true"
-                          Lines="2"
-                          Class="prompt-input">
-            </MudTextField>
-            <MudButton Variant="Variant.Filled" 
-                       Color="Color.Tertiary" 
-                       OnClick="GenerateMusic" 
-                       Disabled="@(string.IsNullOrWhiteSpace(_prompt) || !_hasActiveConfig || _isProcessing)"
-                       Class="send-button">
-                @if (_isProcessing)
-                {
-                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Style="width: 24px; height: 24px;" />
-                }
-                else
-                {
-                    <MudIcon Icon="@Icons.Material.Filled.AutoAwesome" />
-                }
-            </MudButton>
-        </div>
+        <ChatInput @bind-Value="_prompt" 
+                   Placeholder="@(_activeProvider == AiProvider.ElevenLabs ? "Type text to speak..." : "Describe your melody...")" 
+                   IsProcessing="@_isProcessing"
+                   Disabled="@(!_hasActiveConfig)"
+                   Lines="2"
+                   OnSend="GenerateMusic" />
 
     </MudPaper>
 </MudContainer>
@@ -201,36 +162,6 @@
         gap: 20px;
         padding: 28px;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 60px rgba(255, 105, 180, 0.05);
-    }
-    
-    .sound-header {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        padding-bottom: 20px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    
-    .header-icon-wrapper {
-        width: 48px;
-        height: 48px;
-        border-radius: 14px;
-        background: linear-gradient(135deg, #FF69B4 0%, #9B59B6 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 15px rgba(255, 105, 180, 0.3);
-    }
-    
-    .header-icon-wrapper .mud-icon-root {
-        color: white !important;
-    }
-    
-    .provider-label {
-        color: rgba(255, 255, 255, 0.5);
-        display: flex;
-        align-items: center;
-        margin-top: 2px;
     }
     
     .status-chip {
@@ -399,36 +330,6 @@
         border-radius: 8px;
     }
 
-    /* Input Area */
-    .sound-input-area {
-        display: flex;
-        gap: 12px;
-        align-items: flex-end;
-        padding-top: 8px;
-        border-top: 1px solid rgba(255, 255, 255, 0.05);
-        transition: opacity 0.3s ease;
-    }
-    
-    .sound-input-area.is-disabled {
-        opacity: 0.5;
-        pointer-events: none;
-    }
-    
-    .prompt-input {
-        flex: 1;
-    }
-    
-    .send-button {
-        min-width: 56px;
-        height: 56px;
-        border-radius: 16px !important;
-        padding: 0 !important;
-    }
-    
-    .send-button .mud-icon-root {
-        font-size: 1.5rem;
-    }
-
     /* Instrument Selector */
     .instrument-selector {
         display: flex;
@@ -511,14 +412,6 @@
         _activeProvider = activeConfig?.Provider;
     }
 
-    private async Task HandleKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter" && e.CtrlKey && !_isProcessing)
-        {
-            await GenerateMusic();
-        }
-    }
-
     private async Task GenerateMusic()
     {
         if (!_hasActiveConfig) return;
@@ -579,13 +472,6 @@
     }
 
     private bool IsLocalProvider => _activeProvider == AiProvider.Local;
-
-    private string GetProviderIcon() => _activeProvider switch
-    {
-        AiProvider.ElevenLabs => Icons.Material.Filled.RecordVoiceOver,
-        AiProvider.Replicate => Icons.Material.Filled.Audiotrack,
-        _ => Icons.Material.Filled.Piano
-    };
 
     private string GetProviderLabel() => _activeProvider switch
     {

@@ -3,36 +3,22 @@
 @using Fuzz.Domain.Entities
 @using Fuzz.Domain.Services.Interfaces
 @using Fuzz.Domain.Services.AI
+@using Fuzz.Web.Components.Pages.Shared
 @inject IVisualAgentService VisualService
 @inject IAiConfigService ConfigService
 @inject AuthenticationStateProvider AuthProvider
 @inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
 
 <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
     <MudPaper Elevation="0" Class="pa-4 visual-container">
         
-
-        <div class="visual-header">
-            <MudAvatar Color="Color.Secondary" Size="Size.Medium">
-                <MudIcon Icon="@Icons.Material.Filled.ImageSearch" />
-            </MudAvatar>
-            <div class="visual-header-text">
-                <MudText Typo="Typo.h6">Fuzz Visual AI</MudText>
-                @if (_activeConfig != null)
-                {
-                    <MudText Typo="Typo.caption" Style="color: #B0B0B0;">
-                        Using <b>@_activeConfig.Provider</b> (@_activeConfig.ModelId)
-                    </MudText>
-                }
-                else
-                {
-                    <MudText Typo="Typo.caption" Style="color: #B0B0B0;">Image recognition assistant</MudText>
-                }
-            </div>
-            <MudChip T="string" Color="@(_activeConfig != null ? Color.Success : Color.Error)" Size="Size.Small" Variant="Variant.Outlined">
-                @(_activeConfig != null ? "Active" : "Not Configured")
-            </MudChip>
-        </div>
+        <PageHeader Title="Fuzz Visual AI" 
+                    Subtitle="@(_activeConfig != null ? $"Using {_activeConfig.Provider} ({_activeConfig.ModelId})" : "Image recognition assistant")"
+                    Icon="@Icons.Material.Filled.ImageSearch"
+                    IconColor="Color.Secondary"
+                    IsActive="@(_activeConfig != null)">
+        </PageHeader>
 
         @* Image Preview & Upload *@
         <MudFileUpload T="IBrowserFile" Accept=".jpg, .jpeg, .png, .webp" FilesChanged="HandleFileUpload">
@@ -77,59 +63,29 @@
                     </MudText>
                     <MudIconButton Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" Color="Color.Primary" OnClick="CopyToClipboard" />
                 </div>
-                <MudText Typo="Typo.body2" Style="line-height: 1.6;">@((MarkupString)FormatResponse(_response))</MudText>
+                <!-- Reusing MarkdownHelper for formatting logic -->
+                <MudText Typo="Typo.body2" Style="line-height: 1.6;">@((MarkupString)Fuzz.Web.Utilities.MarkdownHelper.ToHtml(_response))</MudText>
             </MudPaper>
         }
 
-        <div class="visual-input-area">
-            <MudTextField @bind-Value="_prompt" 
-                          Placeholder="Ask something about the image..." 
-                          Variant="Variant.Filled" 
-                          DisableUnderline="true"
-                          Class="rounded-lg"
-                          OnKeyDown="@HandleKeyDown"
-                          Disabled="@(_isProcessing || _imageData == null)"
-                          Immediate="true"
-                          FullWidth="true"
-                          Lines="1" 
-                          Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.ChatBubbleOutline"/>
-            
-            <MudIconButton Icon="@(_isProcessing ? Icons.Material.Filled.Stop : Icons.Material.Filled.Send)" 
-                           Color="Color.Secondary" 
-                           Variant="Variant.Filled"
-                           Size="Size.Medium"
-                           Class="send-btn"
-                           OnClick="ProcessImage" 
-                           Disabled="@(string.IsNullOrWhiteSpace(_prompt) || _imageData == null || (_isProcessing && false))" />
-        </div>
+        <ChatInput @bind-Value="_prompt" 
+                   Placeholder="Ask something about the image..." 
+                   IsProcessing="@_isProcessing"
+                   Disabled="@(_imageData == null)"
+                   OnSend="ProcessImage" />
     </MudPaper>
 </MudContainer>
-@inject IJSRuntime JSRuntime
 
 <style>
     .visual-container {
-        /* Using Surface color with some transparency */
         background: rgba(26, 26, 46, 0.95) !important; 
         backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 107, 53, 0.2); /* Primary color border */
+        border: 1px solid rgba(255, 107, 53, 0.2);
         border-radius: 24px !important;
         display: flex;
         flex-direction: column;
         gap: 20px;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    }
-    
-    .visual-header {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        padding-bottom: 20px;
-        border-bottom: 1px solid rgba(255, 107, 53, 0.15); /* Primary color separator */
-    }
-    
-    .visual-header-text {
-        flex: 1;
     }
     
     .image-preview-area {
@@ -141,9 +97,8 @@
         justify-content: center;
         border-radius: 16px;
         overflow: hidden;
-        /* Slightly lighter than background */
         background: rgba(22, 33, 62, 0.6); 
-        border: 2px dashed rgba(255, 107, 53, 0.3); /* Primary dashed border */
+        border: 2px dashed rgba(255, 107, 53, 0.3);
         transition: all 0.3s ease;
     }
 
@@ -174,7 +129,7 @@
     .processing-overlay {
         position: absolute;
         inset: 0;
-        background: rgba(15, 15, 35, 0.85); /* Dark background overlay */
+        background: rgba(15, 15, 35, 0.85); 
         backdrop-filter: blur(4px);
         display: flex;
         flex-direction: column;
@@ -195,10 +150,9 @@
     }
     
     .response-area {
-        /* Tertiary color background */
         background: rgba(22, 33, 62, 0.4) !important; 
         border: 1px solid rgba(255, 107, 53, 0.2);
-        border-left: 3px solid #FF6B35; /* Primary accent */
+        border-left: 3px solid #FF6B35;
         border-radius: 16px !important;
         padding: 20px;
         max-height: 400px;
@@ -212,20 +166,6 @@
     @@keyframes fadeIn {
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .visual-input-area {
-        display: flex;
-        gap: 12px;
-        align-items: center;
-        padding-top: 20px;
-        border-top: 1px solid rgba(255, 107, 53, 0.15);
-    }
-
-    .send-btn {
-        height: 56px;
-        width: 56px;
-        border-radius: 16px !important;
     }
 </style>
 
@@ -275,14 +215,6 @@
         _response = "";
     }
 
-    private async Task HandleKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter" && !_isProcessing && _imageData != null)
-        {
-            await ProcessImage();
-        }
-    }
-
     private async Task ProcessImage()
     {
         if (_imageData == null || string.IsNullOrWhiteSpace(_prompt)) return;
@@ -295,7 +227,6 @@
             var authState = await AuthProvider.GetAuthenticationStateAsync();
             var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "guest";
 
-            // Get active config again to be sure
             await CheckActiveConfig();
             
             if (_activeConfig == null)
@@ -322,14 +253,5 @@
         if (string.IsNullOrEmpty(_response)) return;
         await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", _response);
         Snackbar.Add("Copied to clipboard!", Severity.Success);
-    }
-
-    private string FormatResponse(string content)
-    {
-        if (string.IsNullOrEmpty(content)) return "";
-        content = System.Web.HttpUtility.HtmlEncode(content);
-        content = System.Text.RegularExpressions.Regex.Replace(content, @"\*\*(.+?)\*\*", "<strong>$1</strong>");
-        content = content.Replace("\n", "<br/>");
-        return content;
     }
 }

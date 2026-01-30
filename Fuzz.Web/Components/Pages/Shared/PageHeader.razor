@@ -1,0 +1,55 @@
+@using MudBlazor
+
+<div class="chat-header">
+    <MudAvatar Color="@IconColor" Size="Size.Medium">
+        <MudIcon Icon="@Icon" />
+    </MudAvatar>
+    <div class="chat-header-text">
+        <MudText Typo="Typo.h6">@Title</MudText>
+        <MudText Typo="Typo.caption" Style="color: #B0B0B0;">@Subtitle</MudText>
+    </div>
+    
+    @if (IsActive.HasValue)
+    {
+        <MudChip T="string" 
+                 Color="@(IsActive.Value ? Color.Success : Color.Error)" 
+                 Size="Size.Small" 
+                 Variant="Variant.Filled"
+                 Class="mr-2 status-chip">
+            <MudIcon Icon="@(IsActive.Value ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Error)" 
+                     Size="Size.Small" Style="margin-right: 4px;" />
+            @(IsActive.Value ? "Ready" : "Setup Required")
+        </MudChip>
+    }
+    
+    @ChildContent
+</div>
+
+<style>
+    .chat-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid rgba(255, 107, 53, 0.1);
+        margin-bottom: 16px;
+    }
+    
+    .chat-header-text {
+        flex: 1;
+    }
+    
+    .status-chip {
+        font-weight: 500;
+        letter-spacing: 0.5px;
+    }
+</style>
+
+@code {
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Subtitle { get; set; } = "";
+    [Parameter] public string Icon { get; set; } = Icons.Material.Filled.SmartToy;
+    [Parameter] public Color IconColor { get; set; } = Color.Primary;
+    [Parameter] public bool? IsActive { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}
