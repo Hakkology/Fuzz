@@ -9,6 +9,7 @@
 ### Multi-Brain Architecture
 - **Flexible Providers**: You can seamlessly switch between **OpenAI**, **Google Gemini**, **Local LLMs** (via Ollama), and **Replicate**.
 - **Playground Mode**: You can easily add your own API keys or toggle local models to test different behaviors across various interfaces (Chat, DB operations, Vision, MusicGen etc.).
+- **Architecture**: I used a modular architecture to easily add new providers and tools. It's a work in progress, but it's a good start. 
 
 ### Agentic Capabilities
 - **Task Agent**: An autonomous assistant that manages a To-Do list to test database interactions with **PostgreSQL**. It handles Create, Read, Update, and Delete operations with built-in guardrails for safety.
