@@ -3,7 +3,7 @@
 @using Fuzz.Domain.Entities
 @using Fuzz.Domain.Services.Interfaces
 @using Fuzz.Domain.Services.AI
-@inject IEnumerable<IVisualAgentService> VisualServices
+@inject IVisualAgentService VisualService
 @inject IAiConfigService ConfigService
 @inject AuthenticationStateProvider AuthProvider
 @inject ISnackbar Snackbar
@@ -304,22 +304,7 @@
                 return;
             }
 
-            // Select service based on active provider
-            IVisualAgentService? visualService = _activeConfig.Provider switch
-            {
-                AiProvider.Local => VisualServices.OfType<LocalVisualService>().FirstOrDefault(),
-                AiProvider.Gemini => VisualServices.OfType<GeminiVisualService>().FirstOrDefault(),
-                AiProvider.OpenAI => VisualServices.OfType<OpenAiVisualService>().FirstOrDefault(),
-                _ => null
-            };
-
-            if (visualService == null)
-            {
-                _response = $"⚠️ Service not found for {_activeConfig.Provider}.";
-                return;
-            }
-
-            var result = await visualService.ProcessImageAsync(_imageData, _prompt, userId);
+            var result = await VisualService.ProcessImageAsync(_imageData, _prompt, userId);
             _response = result.Answer;
         }
         catch (Exception ex)
