@@ -48,21 +48,7 @@
             @if (!string.IsNullOrEmpty(AgentService.LastSql))
             {
                 <MudPaper Class="pa-4 mt-4 mb-2" Style="background: rgba(0,0,0,0.3); border: 1px dashed orange;">
-                    <div class="d-flex justify-space-between align-center mb-2">
-                        <MudText Typo="Typo.caption" Color="Color.Warning">GENERATED SQL FOR TUNING:</MudText>
-                        <div class="d-flex gap-2">
-                            <MudButton Variant="Variant.Filled" 
-                                       Color="Color.Success" 
-                                       Size="Size.Small" 
-                                       StartIcon="@Icons.Material.Filled.Check"
-                                       OnClick="ApproveSql">Onayla</MudButton>
-                            <MudButton Variant="Variant.Outlined" 
-                                       Color="Color.Warning" 
-                                       Size="Size.Small" 
-                                       StartIcon="@Icons.Material.Filled.Edit"
-                                       OnClick="EditSql">Düzenle</MudButton>
-                        </div>
-                    </div>
+                    <MudText Typo="Typo.caption" Color="Color.Warning">GENERATED SQL FOR LOGGING:</MudText>
                     <pre style="white-space: pre-wrap; color: #00ff00; font-family: monospace;">@AgentService.LastSql</pre>
                 </MudPaper>
             }
@@ -166,6 +152,18 @@
             var response = await AgentService.ProcessCommandAsync(input, userId, useTools: true, systemPrompt: AgentPrompts.GetSqlTuningPrompt());
             
             _messages.Add(new ChatMessage { Content = response.Answer, IsUser = false, Timestamp = DateTime.Now });
+
+            // Automatic Logging
+            if (!string.IsNullOrEmpty(AgentService.LastSql))
+            {
+                var log = new FuzzSqlLog
+                {
+                    UserId = userId,
+                    InputText = input,
+                    GeneratedSql = AgentService.LastSql
+                };
+                await ConfigService.SaveSqlLogAsync(log);
+            }
         }
         catch (Exception ex)
         {
@@ -174,50 +172,6 @@
         finally
         {
             _isProcessing = false;
-        }
-    }
-
-    private async Task ApproveSql()
-    {
-        var authState = await AuthProvider.GetAuthenticationStateAsync();
-        var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "guest";
-
-        var tune = new FuzzSqlTune
-        {
-            UserId = userId,
-            InputText = _lastInputText,
-            GeneratedSql = AgentService.LastSql ?? "",
-            IsVerified = true
-        };
-
-        await ConfigService.SaveSqlTuneAsync(tune);
-        Snackbar.Add("Sorgu başarıyla onaylandı ve kaydedildi.", Severity.Success);
-    }
-
-    private async Task EditSql()
-    {
-        var parameters = new DialogParameters<SqlEditDialog> { { x => x.Sql, AgentService.LastSql } };
-        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
-        
-        var dialog = await DialogService.ShowAsync<SqlEditDialog>("Sorguyu Düzenle", parameters, options);
-        var result = await dialog.Result;
-
-        if (!result.Canceled && result.Data is string editedSql)
-        {
-            var authState = await AuthProvider.GetAuthenticationStateAsync();
-            var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "guest";
-
-            var tune = new FuzzSqlTune
-            {
-                UserId = userId,
-                InputText = _lastInputText,
-                GeneratedSql = AgentService.LastSql ?? "",
-                CorrectSql = editedSql,
-                IsVerified = true
-            };
-
-            await ConfigService.SaveSqlTuneAsync(tune);
-            Snackbar.Add("Düzeltilmiş sorgu kaydedildi.", Severity.Info);
         }
     }
 }

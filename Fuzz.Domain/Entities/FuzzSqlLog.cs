@@ -1,9 +1,8 @@
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Fuzz.Domain.Entities;
 
-public class FuzzSqlTune
+public class FuzzSqlLog
 {
     [Key]
     public int Id { get; set; }
@@ -16,10 +15,6 @@ public class FuzzSqlTune
 
     [Required]
     public string GeneratedSql { get; set; } = string.Empty;
-
-    public string? CorrectSql { get; set; }
-
-    public bool IsVerified { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

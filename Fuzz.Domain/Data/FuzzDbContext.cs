@@ -25,7 +25,7 @@ public class FuzzDbContext : IdentityDbContext<FuzzUser>
     public DbSet<FuzzProduct> Products { get; set; }
     public DbSet<FuzzOrder> Orders { get; set; }
     public DbSet<FuzzOrderDetail> OrderDetails { get; set; }
-    public DbSet<FuzzSqlTune> SqlTunes { get; set; }
+    public DbSet<FuzzSqlLog> SqlLogs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -34,7 +34,7 @@ public class FuzzDbContext : IdentityDbContext<FuzzUser>
         builder.Entity<FuzzAiConfig>().ToTable("FuzzAIConfigs");
         builder.Entity<FuzzAiModel>().ToTable("FuzzAiModels");
         builder.Entity<FuzzAiParameters>().ToTable("FuzzAIParameters");
-        builder.Entity<FuzzSqlTune>().ToTable("Fuzz_SqlTunes");
+        builder.Entity<FuzzSqlLog>().ToTable("Fuzz_SqlLogs");
 
         // Northwind Configurations with Fuzz_ prefix
         builder.Entity<FuzzCategory>().ToTable("Fuzz_Categories");

@@ -314,10 +314,19 @@ public class AiConfigService : IAiConfigService
         await db.SaveChangesAsync();
     }
 
-    public async Task SaveSqlTuneAsync(FuzzSqlTune tune)
+    public async Task SaveSqlLogAsync(FuzzSqlLog log)
     {
         using var db = await _dbFactory.CreateDbContextAsync();
-        db.SqlTunes.Add(tune);
+        db.SqlLogs.Add(log);
         await db.SaveChangesAsync();
+    }
+
+    public async Task<List<FuzzSqlLog>> GetSqlLogsAsync(string userId)
+    {
+        using var db = await _dbFactory.CreateDbContextAsync();
+        return await db.SqlLogs
+            .Where(l => l.UserId == userId)
+            .OrderByDescending(l => l.CreatedAt)
+            .ToListAsync();
     }
 }

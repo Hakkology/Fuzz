@@ -1,0 +1,64 @@
+@page "/admin-sql-logs"
+@rendermode InteractiveServer
+@using Fuzz.Domain.Entities
+@using Fuzz.Domain.Services
+@using Fuzz.Domain.Services.Interfaces
+@using Fuzz.Web.Components.Pages.Shared
+@using System.Text.Json
+@inject IAiConfigService ConfigService
+@inject AuthenticationStateProvider AuthProvider
+@inject IJSRuntime JS
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <PageHeader Title="SQL Logs" 
+                Subtitle="Batch review agent performance" 
+                Icon="@Icons.Material.Filled.History"
+                IconColor="Color.Info" />
+
+    <MudPaper Elevation="0" Class="pa-4 mt-4" Style="background: rgba(26, 26, 46, 0.7); backdrop-filter: blur(16px); border-radius: 20px;">
+        <div class="d-flex justify-space-between align-center mb-4">
+            <MudText Typo="Typo.h6">Agent Interactions</MudText>
+            <MudButton Variant="Variant.Filled" 
+                       Color="Color.Primary" 
+                       StartIcon="@Icons.Material.Filled.ContentCopy"
+                       OnClick="ExportJson">Export JSON</MudButton>
+        </div>
+
+        <MudTable Items="_logs" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0" Dense="true">
+            <HeaderContent>
+                <MudTh>Date</MudTh>
+                <MudTh>Input Text</MudTh>
+                <MudTh>Generated SQL</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Date">@context.CreatedAt.ToString("g")</MudTd>
+                <MudTd DataLabel="Input Text">@context.InputText</MudTd>
+                <MudTd DataLabel="Generated SQL">
+                    <pre style="font-size: 0.8rem; color: #00ff00; font-family: monospace;">@context.GeneratedSql</pre>
+                </MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private List<FuzzSqlLog> _logs = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "guest";
+        
+        _logs = await ConfigService.GetSqlLogsAsync(userId);
+    }
+
+    private async Task ExportJson()
+    {
+        var json = JsonSerializer.Serialize(_logs, new JsonSerializerOptions { WriteIndented = true });
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", json);
+        // We could also trigger a file download here if needed.
+    }
+}
