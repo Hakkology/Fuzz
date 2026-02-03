@@ -64,12 +64,12 @@ public class AiConfigService : IAiConfigService
         if (provider.HasValue)
         {
             return await db.AiConfigurations
-                .FirstOrDefaultAsync(c => c.UserId == userId && c.IsActive && c.Provider == provider.Value && c.Mode == mode);
+                .FirstOrDefaultAsync(c => c.UserId == userId && c.IsActive && c.Provider == provider.Value && (c.Mode & mode) == mode);
         }
         
         // No provider specified - just find active config for this mode
         return await db.AiConfigurations
-            .FirstOrDefaultAsync(c => c.UserId == userId && c.IsActive && c.Mode == mode);
+            .FirstOrDefaultAsync(c => c.UserId == userId && c.IsActive && (c.Mode & mode) == mode);
     }
 
     public async Task<List<FuzzAiConfig>> GetUserConfigsAsync(string userId)
@@ -108,7 +108,7 @@ public class AiConfigService : IAiConfigService
 
         // Deactivate other configs of the same MODE (e.g. deactivate other Text agents)
         var sameModeConfigs = await db.AiConfigurations
-            .Where(c => c.UserId == userId && c.Mode == targetConfig.Mode)
+            .Where(c => c.UserId == userId && (c.Mode & targetConfig.Mode) != 0)
             .ToListAsync();
             
         sameModeConfigs.ForEach(c => c.IsActive = false);
@@ -314,5 +314,10 @@ public class AiConfigService : IAiConfigService
         await db.SaveChangesAsync();
     }
 
-
+    public async Task SaveSqlTuneAsync(FuzzSqlTune tune)
+    {
+        using var db = await _dbFactory.CreateDbContextAsync();
+        db.SqlTunes.Add(tune);
+        await db.SaveChangesAsync();
+    }
 }

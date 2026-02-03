@@ -47,6 +47,14 @@ public class SchemaAiTool : IAiTool
                             Type = Google.GenAI.Types.Type.BOOLEAN,
                             Description = "Optional. Set to true to retrieve the list of tables and their columns."
                         }
+                    },
+                    {
+                        "execute",
+                        new Schema
+                        {
+                            Type = Google.GenAI.Types.Type.BOOLEAN,
+                            Description = "Optional. Set to true to EXECUTE the SQL, false to ONLY GENERATE the SQL string without running it. Default is true."
+                        }
                     }
                 }
             }
@@ -88,7 +96,13 @@ public class SchemaAiTool : IAiTool
 
         if (args.TryGetValue("sql", out var sqlObj) && sqlObj != null)
         {
-            return await ExecuteSqlAsync(sqlObj.ToString() ?? "", userId);
+            bool shouldExecute = true;
+            if (args.TryGetValue("execute", out var executeObj) && executeObj?.ToString()?.ToLower() == "false")
+            {
+                shouldExecute = false;
+            }
+
+            return await ExecuteSqlAsync(sqlObj.ToString() ?? "", userId, shouldExecute);
         }
 
         return "Error: Please provide either 'sql' to execute a query OR 'get_schema' to view the database structure.";
@@ -155,9 +169,14 @@ public class SchemaAiTool : IAiTool
         }
     }
 
-    private async Task<object> ExecuteSqlAsync(string sql, string userId)
+    private async Task<object> ExecuteSqlAsync(string sql, string userId, bool execute = true)
     {
         LastQuery = sql;
+        if (!execute)
+        {
+            return $"SQL Generated (Not Executed): {sql}";
+        }
+
         try
         {
             using var conn = new NpgsqlConnection(_connectionString);

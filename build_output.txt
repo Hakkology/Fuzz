@@ -1,0 +1,18 @@
+  Geri y├╝klenecek projeler belirleniyor...
+  Geri y├╝kleme i├ğin t├╝m projeler g├╝ncel.
+  Fuzz.Domain -> C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Domain\bin\Debug\net10.0\Fuzz.Domain.dll
+  Fuzz.Web.Client -> C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Web.Client\bin\Debug\net10.0\Fuzz.Web.Client.dll
+  Fuzz.Web.Client (Blazor output) -> C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Web.Client\bin\Debug\net10.0\wwwroot
+C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Web\Components\Account\Pages\Login.razor(18,5): warning RZ10012: Found markup element with unexpected name 'MudStaticPaper'. If this is intended to be a component, add a @using directive for its namespace. [C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Web\Fuzz.Web.csproj]
+C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Web\Components\Account\Pages\Register.razor(22,5): warning RZ10012: Found markup element with unexpected name 'MudStaticPaper'. If this is intended to be a component, add a @using directive for its namespace. [C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Web\Fuzz.Web.csproj]
+C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Web\Components\Pages\AI\SqlEditDialog.razor(20,26): error CS0246: 'MudDialogInstance' t├╝r├╝ veya ad alan─▒ ad─▒ bulunamad─▒ (bir using y├Ânergeniz veya derleme ba┼şvurunuz mu eksik?) [C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Web\Fuzz.Web.csproj]
+
+Olu┼şturma BA┼ŞARISIZ OLDU.
+
+C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Web\Components\Account\Pages\Login.razor(18,5): warning RZ10012: Found markup element with unexpected name 'MudStaticPaper'. If this is intended to be a component, add a @using directive for its namespace. [C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Web\Fuzz.Web.csproj]
+C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Web\Components\Account\Pages\Register.razor(22,5): warning RZ10012: Found markup element with unexpected name 'MudStaticPaper'. If this is intended to be a component, add a @using directive for its namespace. [C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Web\Fuzz.Web.csproj]
+C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Web\Components\Pages\AI\SqlEditDialog.razor(20,26): error CS0246: 'MudDialogInstance' t├╝r├╝ veya ad alan─▒ ad─▒ bulunamad─▒ (bir using y├Ânergeniz veya derleme ba┼şvurunuz mu eksik?) [C:\Users\sarib\Desktop\HakanCalismalar\Blazor\AgentTest\Fuzz.Web\Fuzz.Web.csproj]
+    2 Uyar─▒
+    1 Hata
+
+Ge├ğen S├╝re 00:00:02.70

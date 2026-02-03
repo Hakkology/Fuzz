@@ -55,6 +55,7 @@ builder.Services.AddSingleton<IEmailSender<FuzzUser>, IdentityNoOpEmailSender>()
 builder.Services.AddScoped<IAiTool, TimeAiTool>();
 builder.Services.AddScoped<IAiTool, WebScraperAiTool>();
 builder.Services.AddScoped<IAiTool, SchemaAiTool>();
+builder.Services.AddScoped<IAiTool, SqlGeneratorAiTool>();
 
 // AI Services
 builder.Services.AddScoped<IAiConfigService, AiConfigService>();

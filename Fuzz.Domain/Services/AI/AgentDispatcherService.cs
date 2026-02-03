@@ -16,7 +16,10 @@ public class AgentDispatcherService : IFuzzAgentService
     private readonly IFuzzAgentService _localService;
     private readonly IAiChatValidationService _validationService;
 
-    public string? LastSql => _geminiService.LastSql ?? _openaiService.LastSql ?? _localService.LastSql;
+    public string? LastSql => 
+        _geminiService.LastSql ?? 
+        _openaiService.LastSql ?? 
+        _localService.LastSql;
 
     public AgentDispatcherService(
         IDbContextFactory<FuzzDbContext> dbFactory,
@@ -36,11 +39,11 @@ public class AgentDispatcherService : IFuzzAgentService
     {
         using var db = await _dbFactory.CreateDbContextAsync();
         var active = await db.AiConfigurations
-            .FirstOrDefaultAsync(c => c.UserId == userId && c.IsActive && c.Mode == AiCapabilities.Text);
+            .FirstOrDefaultAsync(c => c.UserId == userId && c.IsActive && (c.Mode & AiCapabilities.Text) == AiCapabilities.Text);
         return active?.Provider;
     }
 
-    public async Task<FuzzResponse> ProcessCommandAsync(string input, string userId, bool useTools = true)
+    public async Task<FuzzResponse> ProcessCommandAsync(string input, string userId, bool useTools = true, string? systemPrompt = null)
     {
         var validation = await _validationService.ValidateAndSanitizeAsync(input);
         if (!validation.IsValid)
@@ -52,9 +55,9 @@ public class AgentDispatcherService : IFuzzAgentService
         
         return provider switch
         {
-            AiProvider.Gemini => await _geminiService.ProcessCommandAsync(validation.SanitizedInput, userId, useTools),
-            AiProvider.OpenAI => await _openaiService.ProcessCommandAsync(validation.SanitizedInput, userId, useTools),
-            AiProvider.Local => await _localService.ProcessCommandAsync(validation.SanitizedInput, userId, useTools),
+            AiProvider.Gemini => await _geminiService.ProcessCommandAsync(validation.SanitizedInput, userId, useTools, systemPrompt),
+            AiProvider.OpenAI => await _openaiService.ProcessCommandAsync(validation.SanitizedInput, userId, useTools, systemPrompt),
+            AiProvider.Local => await _localService.ProcessCommandAsync(validation.SanitizedInput, userId, useTools, systemPrompt),
             _ => new FuzzResponse { Answer = "Please select an active AI provider from the 'AI Settings' page." }
         };
     }

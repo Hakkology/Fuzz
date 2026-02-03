@@ -18,7 +18,8 @@ public class LocalAgentService : IFuzzAgentService
     private readonly IEnumerable<IAiTool> _tools;
     private readonly List<ChatMessage> _history = new();
 
-    public string? LastSql => _tools.OfType<SchemaAiTool>().FirstOrDefault()?.LastQuery;
+    public string? LastSql => _tools.OfType<SchemaAiTool>().FirstOrDefault()?.LastQuery 
+                              ?? _tools.OfType<SqlGeneratorAiTool>().FirstOrDefault()?.LastQuery;
 
     public LocalAgentService(
         IAiConfigService configService, 
@@ -30,7 +31,7 @@ public class LocalAgentService : IFuzzAgentService
         _tools = tools;
     }
 
-    public async Task<FuzzResponse> ProcessCommandAsync(string input, string userId, bool useTools = true)
+    public async Task<FuzzResponse> ProcessCommandAsync(string input, string userId, bool useTools = true, string? systemPrompt = null)
     {
         try 
         {
@@ -40,7 +41,7 @@ public class LocalAgentService : IFuzzAgentService
 
             var client = CreateClient(configData);
 
-            InitializeHistory(userId, useTools);
+            InitializeHistory(userId, useTools, systemPrompt);
             _history.Add(new UserChatMessage(input));
 
             var options = await BuildOptionsAsync(configData.Id, useTools, forceToolCall: useTools);
@@ -72,18 +73,16 @@ public class LocalAgentService : IFuzzAgentService
             options: new OpenAIClientOptions { Endpoint = new Uri(apiBase) });
     }
 
-    private void InitializeHistory(string userId, bool useTools)
+    private void InitializeHistory(string userId, bool useTools, string? systemPrompt = null)
     {
-
-        
         bool currentIsTools = _history.Count > 0 && _history[0] is SystemChatMessage scm && scm.Content[0].Text.Contains("You are Fuzz");
         
-        if (_history.Count == 0 || (currentIsTools != useTools))
+        if (_history.Count == 0 || (currentIsTools != useTools) || systemPrompt != null)
         {
             _history.Clear();
-            string prompt = useTools 
+            string prompt = systemPrompt ?? (useTools 
                 ? AgentPrompts.GetTaskManagerPrompt(userId, includeExamples: true) 
-                : "You are a helpful AI assistant named Fuzz. You can answer questions and chat with the user.";
+                : "You are a helpful AI assistant named Fuzz. You can answer questions and chat with the user.");
             _history.Add(new SystemChatMessage(prompt));
         }
     }
@@ -129,6 +128,11 @@ public class LocalAgentService : IFuzzAgentService
             {
                 _history.Add(new AssistantChatMessage(completion));
                 await ProcessToolCallsAsync(completion.ToolCalls, userId);
+
+                if (completion.ToolCalls.Any(tc => tc.FunctionName == "GenerateSqlTool"))
+                {
+                    return "Sorguyu tuning için hazırladım.";
+                }
                 
                 // After first tool call, don't force anymore to allow natural response
                 options.ToolChoice = null;

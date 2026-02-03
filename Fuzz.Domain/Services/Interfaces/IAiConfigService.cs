@@ -21,4 +21,7 @@ public interface IAiConfigService
     // AI Parameters
     Task<FuzzAiParameters?> GetParametersAsync(int configId);
     Task SaveParametersAsync(FuzzAiParameters parameters);
+    
+    // SQL Tuning
+    Task SaveSqlTuneAsync(FuzzSqlTune tune);
 }

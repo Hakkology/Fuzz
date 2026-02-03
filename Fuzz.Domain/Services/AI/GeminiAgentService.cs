@@ -16,7 +16,8 @@ public class GeminiAgentService : IFuzzAgentService
     private readonly IEnumerable<IAiTool> _tools;
     private readonly List<Content> _history = new();
 
-    public string? LastSql => _tools.OfType<SchemaAiTool>().FirstOrDefault()?.LastQuery;
+    public string? LastSql => _tools.OfType<SchemaAiTool>().FirstOrDefault()?.LastQuery 
+                              ?? _tools.OfType<SqlGeneratorAiTool>().FirstOrDefault()?.LastQuery;
 
     public GeminiAgentService(
         IAiConfigService configService, 
@@ -28,7 +29,7 @@ public class GeminiAgentService : IFuzzAgentService
         _tools = tools;
     }
 
-    public async Task<FuzzResponse> ProcessCommandAsync(string input, string userId, bool useTools = true)
+    public async Task<FuzzResponse> ProcessCommandAsync(string input, string userId, bool useTools = true, string? systemPrompt = null)
     {
         try 
         {
@@ -39,7 +40,7 @@ public class GeminiAgentService : IFuzzAgentService
             var client = new Client(apiKey: configData.ApiKey.Trim());
             var modelId = string.IsNullOrWhiteSpace(configData.ModelId) ? "gemini-1.5-flash" : configData.ModelId;
             
-            InitializeHistory(userId, useTools);
+            InitializeHistory(userId, useTools, systemPrompt);
             _history.Add(new Content { Role = "user", Parts = new List<Part> { new Part { Text = input } } });
 
             var chatConfig = await BuildConfigAsync(configData.Id, useTools);
@@ -59,7 +60,7 @@ public class GeminiAgentService : IFuzzAgentService
 
 
 
-    private void InitializeHistory(string userId, bool useTools)
+    private void InitializeHistory(string userId, bool useTools, string? systemPrompt = null)
     {
 
         if (_history.Count == 0)
@@ -68,9 +69,9 @@ public class GeminiAgentService : IFuzzAgentService
             // Gemini requires alternating user/model roles, start with model
             _history.Add(new Content { Role = "model", Parts = new List<Part> { new Part { Text = "Ready." } } });
             
-            string prompt = useTools 
+            string prompt = systemPrompt ?? (useTools 
                 ? AgentPrompts.GetTaskManagerPrompt(userId)
-                : "You are a helpful AI assistant named Fuzz. You can answer questions and chat with the user.";
+                : "You are a helpful AI assistant named Fuzz. You can answer questions and chat with the user.");
             _history.Add(new Content { Role = "user", Parts = new List<Part> { new Part { Text = prompt } } });
         }
     }
@@ -114,6 +115,11 @@ public class GeminiAgentService : IFuzzAgentService
             {
                 var responseParts = await ProcessFunctionCallsAsync(functionCalls, userId);
                 _history.Add(new Content { Role = "user", Parts = responseParts });
+
+                if (functionCalls.Any(f => f.FunctionCall?.Name == "GenerateSqlTool"))
+                {
+                    return "Sorguyu tuning için hazırladım.";
+                }
             }
             else
             {

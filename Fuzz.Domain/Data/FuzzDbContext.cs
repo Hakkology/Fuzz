@@ -16,6 +16,17 @@ public class FuzzDbContext : IdentityDbContext<FuzzUser>
     public DbSet<FuzzAiModel> FuzzAiModels { get; set; }
     public DbSet<FuzzAiParameters> FuzzAiParameters { get; set; }
 
+    // Northwind Tables
+    public DbSet<FuzzCategory> Categories { get; set; }
+    public DbSet<FuzzCustomer> Customers { get; set; }
+    public DbSet<FuzzEmployee> Employees { get; set; }
+    public DbSet<FuzzSupplier> Suppliers { get; set; }
+    public DbSet<FuzzShipper> Shippers { get; set; }
+    public DbSet<FuzzProduct> Products { get; set; }
+    public DbSet<FuzzOrder> Orders { get; set; }
+    public DbSet<FuzzOrderDetail> OrderDetails { get; set; }
+    public DbSet<FuzzSqlTune> SqlTunes { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -23,6 +34,20 @@ public class FuzzDbContext : IdentityDbContext<FuzzUser>
         builder.Entity<FuzzAiConfig>().ToTable("FuzzAIConfigs");
         builder.Entity<FuzzAiModel>().ToTable("FuzzAiModels");
         builder.Entity<FuzzAiParameters>().ToTable("FuzzAIParameters");
+        builder.Entity<FuzzSqlTune>().ToTable("Fuzz_SqlTunes");
+
+        // Northwind Configurations with Fuzz_ prefix
+        builder.Entity<FuzzCategory>().ToTable("Fuzz_Categories");
+        builder.Entity<FuzzCustomer>().ToTable("Fuzz_Customers");
+        builder.Entity<FuzzEmployee>().ToTable("Fuzz_Employees");
+        builder.Entity<FuzzSupplier>().ToTable("Fuzz_Suppliers");
+        builder.Entity<FuzzShipper>().ToTable("Fuzz_Shippers");
+        builder.Entity<FuzzProduct>().ToTable("Fuzz_Products");
+        builder.Entity<FuzzOrder>().ToTable("Fuzz_Orders");
+        builder.Entity<FuzzOrderDetail>().ToTable("Fuzz_OrderDetails");
+
+        builder.Entity<FuzzOrderDetail>()
+            .HasKey(od => new { od.OrderID, od.ProductID });
         
         builder.Entity<FuzzUser>().ToTable("FuzzUsers");
         builder.Entity<IdentityRole>().ToTable("FuzzRoles");

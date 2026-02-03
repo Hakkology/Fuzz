@@ -82,7 +82,10 @@ public class FuzzSeedService : IFuzzSeedService
             // 1. Create Roles and Admin
             await SeedRolesAndAdminAsync();
 
-            // 2. Upsert Default Models (Hybrid Support)
+            // 2. Seed Northwind Data
+            await SeedNorthwindDataAsync();
+
+            // 3. Upsert Default Models (Hybrid Support)
             // We merge Text and Visual definitions into single entities with IsVisualRecognition=true
             var defaultModels = new List<FuzzAiModel>
             {
@@ -189,5 +192,75 @@ public class FuzzSeedService : IFuzzSeedService
                 _logger.LogInformation("✅ Admin user created and assigned to 'Admin' role.");
             }
         }
+    }
+
+    private async Task SeedNorthwindDataAsync()
+    {
+        if (await _dbContext.Categories.AnyAsync())
+        {
+            _logger.LogInformation("✅ Northwind data already seeded.");
+            return;
+        }
+
+        _logger.LogInformation("🌱 Seeding Northwind data...");
+
+        // Categories
+        var categories = new List<FuzzCategory>
+        {
+            new() { CategoryName = "Beverages", Description = "Soft drinks, coffees, teas, beers, and ales" },
+            new() { CategoryName = "Condiments", Description = "Sweet and savory sauces, relishes, spreads, and seasonings" },
+            new() { CategoryName = "Confections", Description = "Desserts, candies, and sweet breads" },
+            new() { CategoryName = "Dairy Products", Description = "Cheeses" },
+            new() { CategoryName = "Grains/Cereals", Description = "Breads, crackers, pasta, and cereal" },
+            new() { CategoryName = "Meat/Poultry", Description = "Prepared meats" },
+            new() { CategoryName = "Produce", Description = "Dried fruit and bean curd" },
+            new() { CategoryName = "Seafood", Description = "Seaweed and fish" }
+        };
+        _dbContext.Categories.AddRange(categories);
+        await _dbContext.SaveChangesAsync();
+
+        // Shippers
+        var shippers = new List<FuzzShipper>
+        {
+            new() { CompanyName = "Speedy Express", Phone = "(503) 555-9831" },
+            new() { CompanyName = "United Package", Phone = "(503) 555-3199" },
+            new() { CompanyName = "Federal Shipping", Phone = "(503) 555-9931" }
+        };
+        _dbContext.Shippers.AddRange(shippers);
+        await _dbContext.SaveChangesAsync();
+
+        // Customers (A few samples)
+        var customers = new List<FuzzCustomer>
+        {
+            new() { CustomerID = "ALFKI", CompanyName = "Alfreds Futterkiste", ContactName = "Maria Anders", City = "Berlin", Country = "Germany" },
+            new() { CustomerID = "ANATR", CompanyName = "Ana Trujillo Emparedados y helados", ContactName = "Ana Trujillo", City = "México D.F.", Country = "Mexico" },
+            new() { CustomerID = "ANTON", CompanyName = "Antonio Moreno Taquería", ContactName = "Antonio Moreno", City = "México D.F.", Country = "Mexico" },
+            new() { CustomerID = "AROUT", CompanyName = "Around the Horn", ContactName = "Thomas Hardy", City = "London", Country = "UK" },
+            new() { CustomerID = "BERGS", CompanyName = "Berglunds snabbköp", ContactName = "Christina Berglund", City = "Luleå", Country = "Sweden" }
+        };
+        _dbContext.Customers.AddRange(customers);
+        await _dbContext.SaveChangesAsync();
+
+        // Employees (Minimal set)
+        var employees = new List<FuzzEmployee>
+        {
+            new() { FirstName = "Nancy", LastName = "Davolio", Title = "Sales Representative", City = "Seattle", Country = "USA" },
+            new() { FirstName = "Andrew", LastName = "Fuller", Title = "Vice President, Sales", City = "Tacoma", Country = "USA" }
+        };
+        _dbContext.Employees.AddRange(employees);
+        await _dbContext.SaveChangesAsync();
+
+        // Products (Sample linked to Category 1)
+        var bevCat = categories.First(c => c.CategoryName == "Beverages");
+        var products = new List<FuzzProduct>
+        {
+            new() { ProductName = "Chai", CategoryID = bevCat.CategoryID, UnitPrice = 18.00m, UnitsInStock = 39 },
+            new() { ProductName = "Chang", CategoryID = bevCat.CategoryID, UnitPrice = 19.00m, UnitsInStock = 17 },
+            new() { ProductName = "Aniseed Syrup", CategoryID = bevCat.CategoryID, UnitPrice = 10.00m, UnitsInStock = 13 }
+        };
+        _dbContext.Products.AddRange(products);
+        await _dbContext.SaveChangesAsync();
+
+        _logger.LogInformation("✅ Northwind data seeding completed.");
     }
 }

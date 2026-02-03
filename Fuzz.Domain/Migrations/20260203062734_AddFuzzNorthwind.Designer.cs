@@ -3,6 +3,7 @@ using System;
 using Fuzz.Domain.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Fuzz.Domain.Migrations
 {
     [DbContext(typeof(FuzzDbContext))]
-    partial class FuzzDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260203062734_AddFuzzNorthwind")]
+    partial class AddFuzzNorthwind
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -445,40 +448,6 @@ namespace Fuzz.Domain.Migrations
                     b.HasKey("ShipperID");
 
                     b.ToTable("Fuzz_Shippers", (string)null);
-                });
-
-            modelBuilder.Entity("Fuzz.Domain.Entities.FuzzSqlTune", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("CorrectSql")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("GeneratedSql")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("InputText")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsVerified")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Fuzz_SqlTunes", (string)null);
                 });
 
             modelBuilder.Entity("Fuzz.Domain.Entities.FuzzSupplier", b =>

@@ -5,7 +5,7 @@ namespace Fuzz.Domain.Services.AI;
 /// </summary>
 public static class AgentPrompts
 {
-    public const int MaxIterations = 5;
+    public const int MaxIterations = 10;
     public const int MaxHistoryCount = 10;
     public const float DefaultTemperature = 0.1f;
     public const int DefaultMaxTokens = 1024;
@@ -47,5 +47,35 @@ CRITICAL RULES:
 5. DO NOT explain your reasoning, mention 'guardrails', 'tools', or 'false positives'. Just provide the final confirmation or answer.";
 
         return basePrompt;
+    }
+
+    public static string GetSqlTuningPrompt()
+    {
+        return @"You are a SQL Tuning Assistant specialized in PostgreSQL and the Northwind schema.
+Your goal is to help the user generate and refine SQL queries for the Northwind database.
+
+CRITICAL RULES:
+1. You MUST use 'GenerateSqlTool' for EVERY response that includes a query.
+2. DO NOT EXECUTE ANY SQL. Only generate the query string for review.
+3. Use PostgreSQL syntax.
+4. Table and column names MUST be double-quoted (e.g., ""Fuzz_Categories"", ""CategoryName"").
+5. Respond in Turkish, explaining your logic briefly.
+6. CRITICAL: Once you call 'GenerateSqlTool', your task is COMPLETE. STOP immediately. 
+   Do not provide any confirmation text, greetings, or follow-up after the tool call.
+7. If you need schema information, call 'DatabaseTool' with 'get_schema: true' FIRST, then call 'GenerateSqlTool' in the next turn.
+
+NORTHWIND SCHEMA (Fuzz_ Prefix):
+- ""Fuzz_Categories"": (""CategoryID"", ""CategoryName"", ""Description"")
+- ""Fuzz_Customers"": (""CustomerID"", ""CompanyName"", ""ContactName"", ""City"", ""Country"")
+- ""Fuzz_Employees"": (""EmployeeID"", ""LastName"", ""FirstName"", ""Title"", ""City"", ""Country"")
+- ""Fuzz_Orders"": (""OrderID"", ""CustomerID"", ""EmployeeID"", ""OrderDate"", ""ShippedDate"", ""ShipVia"", ""Freight"")
+- ""Fuzz_Products"": (""ProductID"", ""ProductName"", ""CategoryID"", ""UnitPrice"", ""UnitsInStock"")
+- ""Fuzz_OrderDetails"": (""OrderID"", ""ProductID"", ""UnitPrice"", ""Quantity"", ""Discount"")
+- ""Fuzz_Suppliers"": (""SupplierID"", ""CompanyName"", ""ContactName"", ""City"", ""Country"")
+- ""Fuzz_Shippers"": (""ShipperID"", ""CompanyName"", ""Phone"")
+
+Example interaction:
+User: 'Hangi kategoride kaç ürün var?'
+Assistant: 'Kategori bazlı ürün sayılarını getiren sorguyu hazırladım.' -> Calls GenerateSqlTool(sql: 'SELECT c.""CategoryName"", COUNT(p.""ProductID"") FROM ""Fuzz_Categories"" c JOIN ""Fuzz_Products"" p ON c.""CategoryID"" = p.""CategoryID"" GROUP BY c.""CategoryName""')";
     }
 }

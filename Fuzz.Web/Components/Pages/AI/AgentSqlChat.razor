@@ -1,0 +1,223 @@
+@page "/agent-sql-chat"
+@rendermode InteractiveServer
+@using Fuzz.Domain.Entities
+@using Fuzz.Domain.Services
+@using Fuzz.Domain.Services.Interfaces
+@using Fuzz.Domain.Services.AI
+@using Fuzz.Web.Components.Pages.Shared
+@inject IFuzzAgentService AgentService
+@inject IAiConfigService ConfigService
+@inject AuthenticationStateProvider AuthProvider
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
+    <MudPaper Elevation="0" Class="pa-4 chat-container">
+        
+        <PageHeader Title="SQL Chat" 
+                    Subtitle="Northwind tuning & SQL generation" 
+                    Icon="@Icons.Material.Filled.Terminal"
+                    IconColor="Color.Warning"
+                    IsActive="@_isActive"/>
+
+        <div class="chat-messages" @ref="_chatContainer">
+            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4" Dense="true">
+                Bu modda yapılan sorgular veritabanında <b>çalıştırılmaz</b>, sadece tuning için SQL üretilir.
+            </MudAlert>
+
+            @foreach (var msg in _messages)
+            {
+                <ChatBubble Message="@msg.Content" 
+                            IsUser="@msg.IsUser" 
+                            Timestamp="@msg.Timestamp" />
+            }
+            
+            @if (_isProcessing)
+            {
+                <div class="chat-bubble-wrapper agent">
+                    <MudAvatar Color="Color.Warning" Size="Size.Small" Class="chat-avatar">
+                        <MudIcon Icon="@Icons.Material.Filled.SmartToy" Size="Size.Small" />
+                    </MudAvatar>
+                    <div class="chat-bubble agent-bubble typing">
+                        <MudProgressCircular Color="Color.Warning" Indeterminate="true" Size="Size.Small" />
+                        <span class="ml-2">Generating SQL...</span>
+                    </div>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(AgentService.LastSql))
+            {
+                <MudPaper Class="pa-4 mt-4 mb-2" Style="background: rgba(0,0,0,0.3); border: 1px dashed orange;">
+                    <div class="d-flex justify-space-between align-center mb-2">
+                        <MudText Typo="Typo.caption" Color="Color.Warning">GENERATED SQL FOR TUNING:</MudText>
+                        <div class="d-flex gap-2">
+                            <MudButton Variant="Variant.Filled" 
+                                       Color="Color.Success" 
+                                       Size="Size.Small" 
+                                       StartIcon="@Icons.Material.Filled.Check"
+                                       OnClick="ApproveSql">Onayla</MudButton>
+                            <MudButton Variant="Variant.Outlined" 
+                                       Color="Color.Warning" 
+                                       Size="Size.Small" 
+                                       StartIcon="@Icons.Material.Filled.Edit"
+                                       OnClick="EditSql">Düzenle</MudButton>
+                        </div>
+                    </div>
+                    <pre style="white-space: pre-wrap; color: #00ff00; font-family: monospace;">@AgentService.LastSql</pre>
+                </MudPaper>
+            }
+        </div>
+
+        <ChatInput @bind-Value="_currentInput" 
+                   Placeholder="Sorgu yazdır (örn: Stokta olmayan ürünleri getir)..." 
+                   IsProcessing="@_isProcessing"
+                   OnSend="SendMessage" />
+    </MudPaper>
+</MudContainer>
+
+<style>
+    .chat-container {
+        background: rgba(26, 26, 46, 0.7) !important;
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 107, 53, 0.15);
+        border-radius: 20px !important;
+        height: 80vh;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding-right: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .chat-bubble-wrapper.agent {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        flex-direction: row;
+        justify-content: flex-start;
+    }
+    
+    .agent-bubble {
+        background: rgba(40, 40, 60, 0.9);
+        color: #E0E0E0;
+        border-bottom-left-radius: 4px;
+        border: 1px solid rgba(255, 107, 53, 0.2);
+        border-radius: 16px;
+        max-width: 75%;
+    }
+
+    .typing {
+        padding: 8px 16px;
+        display: flex;
+        align-items: center;
+    }
+</style>
+
+@code {
+    private List<ChatMessage> _messages = new();
+    private string _currentInput = "";
+    private bool _isProcessing = false;
+    private bool _isActive = false;
+    private ElementReference _chatContainer;
+    private string _lastInputText = "";
+
+    private class ChatMessage
+    {
+        public string Content { get; set; } = "";
+        public bool IsUser { get; set; }
+        public DateTime Timestamp { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "guest";
+        
+        var config = await ConfigService.GetActiveConfigAsync(userId, mode: AiCapabilities.Text);
+        _isActive = config != null;
+
+        // Clear history when entering specialized chat
+        AgentService.ClearHistory();
+    }
+
+    private async Task SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(_currentInput)) return;
+
+        var input = _currentInput;
+        _currentInput = "";
+        _isProcessing = true;
+
+        _messages.Add(new ChatMessage { Content = input, IsUser = true, Timestamp = DateTime.Now });
+        _lastInputText = input;
+
+        try
+        {
+            var authState = await AuthProvider.GetAuthenticationStateAsync();
+            var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "guest";
+
+            // Pass the specialized prompt for SQL Tuning
+            var response = await AgentService.ProcessCommandAsync(input, userId, useTools: true, systemPrompt: AgentPrompts.GetSqlTuningPrompt());
+            
+            _messages.Add(new ChatMessage { Content = response.Answer, IsUser = false, Timestamp = DateTime.Now });
+        }
+        catch (Exception ex)
+        {
+            _messages.Add(new ChatMessage { Content = $"Error: {ex.Message}", IsUser = false, Timestamp = DateTime.Now });
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private async Task ApproveSql()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "guest";
+
+        var tune = new FuzzSqlTune
+        {
+            UserId = userId,
+            InputText = _lastInputText,
+            GeneratedSql = AgentService.LastSql ?? "",
+            IsVerified = true
+        };
+
+        await ConfigService.SaveSqlTuneAsync(tune);
+        Snackbar.Add("Sorgu başarıyla onaylandı ve kaydedildi.", Severity.Success);
+    }
+
+    private async Task EditSql()
+    {
+        var parameters = new DialogParameters<SqlEditDialog> { { x => x.Sql, AgentService.LastSql } };
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        
+        var dialog = await DialogService.ShowAsync<SqlEditDialog>("Sorguyu Düzenle", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is string editedSql)
+        {
+            var authState = await AuthProvider.GetAuthenticationStateAsync();
+            var userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "guest";
+
+            var tune = new FuzzSqlTune
+            {
+                UserId = userId,
+                InputText = _lastInputText,
+                GeneratedSql = AgentService.LastSql ?? "",
+                CorrectSql = editedSql,
+                IsVerified = true
+            };
+
+            await ConfigService.SaveSqlTuneAsync(tune);
+            Snackbar.Add("Düzeltilmiş sorgu kaydedildi.", Severity.Info);
+        }
+    }
+}
